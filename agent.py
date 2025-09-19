@@ -77,5 +77,10 @@ def main():
                 last_msg = message.text_messages[-1]
                 print(f"{message.role}: {last_msg.text.value}\n")
 
+    # Delete resources
+
+    agent_client.delete_agent(agent.id)
+    print(f"Deleted agent: {agent.id}")
+
 if __name__ == '__main__':
     main()
