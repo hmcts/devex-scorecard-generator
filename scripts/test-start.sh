@@ -10,6 +10,10 @@ if [ ! -f .env ]; then
     echo "📝 Please edit .env file with your actual GitHub credentials"
 fi
 
+# Build TypeScript
+echo "🔧 Building TypeScript..."
+npm run build
+
 # Start the bot
 echo "🚀 Starting bot on port 3000..."
-GITHUB_TOKEN="test-token" WEBHOOK_SECRET="test-secret" node src/index.js
+GITHUB_TOKEN="test-token" WEBHOOK_SECRET="test-secret" node dist/index.js

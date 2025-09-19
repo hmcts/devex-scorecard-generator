@@ -14,26 +14,14 @@ jest.mock('@octokit/rest', () => ({
   })),
 }));
 
-jest.mock('@octokit/webhooks', () => ({
-  Webhooks: jest.fn().mockImplementation(() => ({
-    on: jest.fn(),
-    middleware: jest.fn((req, res, next) => {
-      if (req.body && Object.keys(req.body).length === 0) {
-        return res.status(400).send('Bad Request');
-      }
-      next();
-    }),
-  })),
-}));
-
-const request = require('supertest');
-
-const { app, server } = require('../src/index');
+import request from 'supertest';
+import { app, server } from '../src/index';
 
 describe('DevEx Scorecard Generator Bot', () => {
   afterAll((done) => {
     server.close(done);
   });
+
   describe('GET /', () => {
     it('should return bot information', async () => {
       const response = await request(app)

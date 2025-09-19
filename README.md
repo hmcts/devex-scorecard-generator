@@ -31,8 +31,18 @@ The generated scorecard evaluates repositories across multiple dimensions:
 
 1. Clone the repository
 2. Install dependencies: `npm install`
-3. Copy `.env.example` to `.env` and configure your GitHub credentials
-4. Start the bot: `npm start`
+3. Build the TypeScript code: `npm run build`
+4. Copy `.env.example` to `.env` and configure your GitHub credentials
+5. Start the bot: `npm start`
+
+## Technical Stack
+
+- **TypeScript** with Node.js 18+ and Express.js
+- GitHub API integration via @octokit/rest
+- Webhook handling with @octokit/webhooks
+- Jest testing framework with ts-jest and supertest
+- ESLint with TypeScript support for code quality
+- Docker containerization support
 
 ## Environment Variables
 
@@ -42,10 +52,12 @@ The generated scorecard evaluates repositories across multiple dimensions:
 
 ## Development
 
-- `npm run dev`: Start with nodemon for development
+- `npm run build`: Build TypeScript to JavaScript
+- `npm run dev`: Start with nodemon and ts-node for development
 - `npm test`: Run tests
 - `npm run lint`: Run ESLint
 - `npm run lint:fix`: Fix ESLint issues
+- `npm run clean`: Remove build output
 
 ## GitHub App Setup
 

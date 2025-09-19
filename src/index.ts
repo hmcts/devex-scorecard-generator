@@ -1,7 +1,6 @@
-require('dotenv').config();
-const express = require('express');
-const { Webhooks } = require('@octokit/webhooks');
-const { Octokit } = require('@octokit/rest');
+import 'dotenv/config';
+import express, { Request, Response } from 'express';
+import { Octokit } from '@octokit/rest';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -9,11 +8,6 @@ const port = process.env.PORT || 3000;
 // Initialize Octokit with GitHub App credentials
 const octokit = new Octokit({
   auth: process.env.GITHUB_TOKEN,
-});
-
-// Initialize webhooks
-const webhooks = new Webhooks({
-  secret: process.env.WEBHOOK_SECRET || 'development-secret',
 });
 
 // DevEx Scorecard criteria template
@@ -74,103 +68,39 @@ Welcome! This repository has been analyzed for developer experience. Below are t
 
 > This scorecard was generated automatically. Check the box above to request an updated analysis.`;
 
-// Handle repository events (creation or installation)
-webhooks.on(['repository.created', 'installation.created'], async ({ id, name, payload }) => {
-  console.log(`Received ${name} event with ID: ${id}`);
-  
-  try {
-    let repository;
-    
-    if (name === 'repository.created') {
-      repository = payload.repository;
-    } else if (name === 'installation.created') {
-      // For installation events, we'll create issues for all accessible repositories
-      const installations = await octokit.rest.apps.listReposAccessibleToInstallation();
-      
-      for (const repo of installations.data.repositories) {
-        await createScorecardIssue(repo);
-      }
-      return;
-    }
-    
-    if (repository) {
-      await createScorecardIssue(repository);
-    }
-  } catch (error) {
-    console.error('Error handling repository event:', error);
-  }
-});
+// Types for webhook payloads
+interface Repository {
+  name: string;
+  full_name: string;
+  owner: {
+    login: string;
+  };
+}
 
-// Handle issue events (checkbox interactions)
-webhooks.on('issues.edited', async ({ id, name, payload }) => {
-  console.log(`Received ${name} event with ID: ${id}`);
-  
-  try {
-    const { issue, repository } = payload;
-    
-    // Check if this is our scorecard issue and if re-run checkbox was checked
-    if (issue.title.includes('DevEx Scorecard') && 
-        issue.body.includes('- [x] **Re-run scorecard**')) {
-      
-      console.log('Re-run scorecard requested');
-      
-      // Update the issue to uncheck the box and add a comment
-      const updatedBody = issue.body.replace('- [x] **Re-run scorecard**', '- [ ] **Re-run scorecard**');
-      
-      await octokit.rest.issues.update({
-        owner: repository.owner.login,
-        repo: repository.name,
-        issue_number: issue.number,
-        body: updatedBody
-      });
-      
-      // Add a comment indicating the re-run
-      await octokit.rest.issues.createComment({
-        owner: repository.owner.login,
-        repo: repository.name,
-        issue_number: issue.number,
-        body: `🔄 **Scorecard re-run requested**\n\nThe DevEx Scorecard has been refreshed. Please review the updated criteria above.\n\n_Generated at: ${new Date().toISOString()}_`
-      });
-      
-      console.log('Scorecard re-run completed');
-    }
-  } catch (error) {
-    console.error('Error handling issue event:', error);
-  }
-});
+interface Issue {
+  number: number;
+  title: string;
+  body: string;
+}
 
-// Function to create scorecard issue
-async function createScorecardIssue(repository) {
-  try {
-    console.log(`Creating scorecard issue for ${repository.full_name}`);
-    
-    const issue = await octokit.rest.issues.create({
-      owner: repository.owner.login,
-      repo: repository.name,
-      title: '🎯 DevEx Scorecard',
-      body: DEVEX_SCORECARD_TEMPLATE,
-      labels: ['devex-scorecard', 'documentation']
-    });
-    
-    console.log(`Created issue #${issue.data.number} for ${repository.full_name}`);
-    return issue.data;
-  } catch (error) {
-    console.error(`Error creating scorecard issue for ${repository.full_name}:`, error);
-    throw error;
-  }
+interface WebhookPayload {
+  action?: string;
+  repository?: Repository;
+  installation?: any;
+  issue?: Issue;
 }
 
 // Express middleware
 app.use(express.json());
 
 // Webhook endpoint - manually handle the webhook since middleware might not be available
-app.post('/webhook', async (req, res) => {
+app.post('/webhook', async (req: Request, res: Response) => {
   try {
-    const { action, repository, issue } = req.body;
+    const { action, repository, issue }: WebhookPayload = req.body;
     
     // Handle repository events
-    if (req.body.repository && (action === 'created' || req.body.installation)) {
-      console.log(`Repository event: ${action} for ${repository?.full_name}`);
+    if (repository && (action === 'created' || req.body.installation)) {
+      console.log(`Repository event: ${action} for ${repository.full_name}`);
       if (repository) {
         await createScorecardIssue(repository);
       }
@@ -189,6 +119,10 @@ app.post('/webhook', async (req, res) => {
       
       if (issue.body.includes('- [x] **Re-run scorecard**')) {
         console.log('Re-run scorecard requested');
+        
+        if (!repository) {
+          throw new Error('Repository information missing from issue event');
+        }
         
         // Update the issue to uncheck the box
         const updatedBody = issue.body.replace('- [x] **Re-run scorecard**', '- [ ] **Re-run scorecard**');
@@ -217,13 +151,34 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
+// Function to create scorecard issue
+async function createScorecardIssue(repository: Repository): Promise<any> {
+  try {
+    console.log(`Creating scorecard issue for ${repository.full_name}`);
+    
+    const issue = await octokit.rest.issues.create({
+      owner: repository.owner.login,
+      repo: repository.name,
+      title: '🎯 DevEx Scorecard',
+      body: DEVEX_SCORECARD_TEMPLATE,
+      labels: ['devex-scorecard', 'documentation']
+    });
+    
+    console.log(`Created issue #${issue.data.number} for ${repository.full_name}`);
+    return issue.data;
+  } catch (error) {
+    console.error(`Error creating scorecard issue for ${repository.full_name}:`, error);
+    throw error;
+  }
+}
+
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
 // Root endpoint
-app.get('/', (req, res) => {
+app.get('/', (req: Request, res: Response) => {
   res.json({
     name: 'DevEx Scorecard Generator',
     description: 'GitHub Bot for generating Developer Experience Scorecards',
@@ -237,4 +192,4 @@ const server = app.listen(port, () => {
   console.log(`Webhook endpoint: http://localhost:${port}/webhook`);
 });
 
-module.exports = { app, server };
+export { app, server };
