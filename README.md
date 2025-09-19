@@ -1,7 +1,18 @@
-# devex-scorecard-generator
+# DevEx Scorecard Generator
 
-This app uses a GitHub Bot to generate a DevEx Scorecard for your repository. The bot will create a new issue in your repository with the scorecard details.
+This repository is for a hackathon project to create a Developer Experience (DevEx) Scorecard Generator.
 
-The DevEx Scorecard is a tool to help you evaluate the developer experience of your project. It provides a set of criteria to assess how easy it is for developers to use and contribute to your project.
+## Purpose
+The project aims to help teams measure and improve their developer experience by generating scorecards based on key metrics and best practices.
 
-Criteria include:
+## Features
+- Automated scoring of repositories and projects
+- Customizable metrics for DevEx evaluation
+- Easy integration with CI/CD pipelines
+
+## Getting Started
+Clone the repository and follow the instructions to run the scorecard generator locally or in your CI/CD environment.
+
+## Contributing
+Contributions and ideas from all hackathon participants are welcome!
+
