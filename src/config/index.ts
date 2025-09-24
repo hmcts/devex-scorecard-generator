@@ -7,6 +7,12 @@ export interface AppConfig {
   githubPrivateKeyPath: string;
   webhookSecret: string;
   homeDirectory: string;
+  azure?: {
+    projectEndpoint: string;
+    deploymentName: string;
+    apiKey?: string;
+    apiVersion?: string;
+  };
 }
 
 export function getConfig(): AppConfig {
@@ -17,7 +23,7 @@ export function getConfig(): AppConfig {
     throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
   }
 
-  return {
+  const config: AppConfig = {
     port: parseInt(process.env.PORT || '3000', 10),
     nodeEnv: process.env.NODE_ENV || 'development',
     githubAppId: process.env.GITHUB_APP_ID || '',
@@ -25,6 +31,28 @@ export function getConfig(): AppConfig {
     webhookSecret: process.env.WEBHOOK_SECRET || 'test-secret-for-development',
     homeDirectory: process.env.HOME || '',
   };
+
+  // Add Azure AI Foundry configuration if available
+  if (process.env.AZURE_AI_PROJECT_ENDPOINT && process.env.AZURE_AI_DEPLOYMENT_NAME) {
+    config.azure = {
+      projectEndpoint: process.env.AZURE_AI_PROJECT_ENDPOINT,
+      deploymentName: process.env.AZURE_AI_DEPLOYMENT_NAME,
+      apiKey: process.env.AZURE_AI_API_KEY,
+      apiVersion: process.env.AZURE_AI_API_VERSION || '2024-12-01-preview',
+    };
+  }
+
+  // Legacy support for existing Azure OpenAI configuration
+  if (!config.azure && process.env.PROJECT_ENDPOINT && process.env.MODEL_DEPLOYMENT_NAME) {
+    config.azure = {
+      projectEndpoint: process.env.PROJECT_ENDPOINT,
+      deploymentName: process.env.MODEL_DEPLOYMENT_NAME,
+      apiKey: process.env.AZURE_AI_API_KEY,
+      apiVersion: process.env.AZURE_AI_API_VERSION || '2024-12-01-preview',
+    };
+  }
+
+  return config;
 }
 
 export const config = getConfig();

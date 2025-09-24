@@ -39,3 +39,10 @@ export interface HealthStatus {
   status: string;
   timestamp: string;
 }
+
+export interface ScorecardResult {
+  score: number;
+  color: 'red' | 'yellow' | 'green';
+  analysis: string;
+  recommendations: string[];
+}

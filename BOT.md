@@ -1,19 +1,24 @@
 # DevEx Scorecard Generator
 
-A GitHub Bot that automatically generates Developer Experience (DevEx) Scorecards for repositories. The bot creates an issue with comprehensive criteria to evaluate how easy it is for developers to use and contribute to your project.
+A GitHub Bot that automatically generates Developer Experience (DevEx) Scorecards for repositories using AI-powered analysis. The bot creates comprehensive issues with detailed criteria to evaluate how easy it is for developers to use and contribute to your project.
 
 ## Features
 
-- **Automatic Issue Creation**: Creates a DevEx Scorecard issue when a repository is created or when the bot is installed
-- **Interactive Checkbox**: Includes a "Re-run scorecard" checkbox that allows users to request a fresh analysis
-- **Comprehensive Criteria**: Evaluates documentation, project structure, development setup, testing, CI/CD, security, and community aspects
+- **🤖 AI-Powered Analysis**: Uses Azure OpenAI to intelligently analyze repositories and provide tailored recommendations
+- **📊 Automated Scorecard Generation**: Creates detailed GitHub issues with scoring (0-100) and actionable recommendations  
+- **🔄 Smart Fallback**: Works with or without AI configuration - gracefully falls back to comprehensive static templates
+- **⚡ Easy Integration**: Simple GitHub App installation with webhook-based operation
+- **🎯 Comprehensive Evaluation**: Analyzes documentation, project structure, development setup, testing, CI/CD, security, and community practices
+- **🔄 Re-run Capability**: Users can trigger fresh analysis by checking a box in the generated issue
 
 ## How It Works
 
-1. **Installation**: When the bot is installed on a repository or when a new repository is created
-2. **Issue Creation**: Automatically creates a "🎯 DevEx Scorecard" issue with evaluation criteria
-3. **Re-run Feature**: Users can check the "Re-run scorecard" checkbox to trigger a fresh analysis
-4. **Auto-update**: The bot automatically unchecks the box and adds a comment when re-run is completed
+1. **Install the GitHub App** on your repositories or organization
+2. **Automatic Trigger**: Bot activates when added to new repositories or existing ones
+3. **Repository Analysis**: Fetches and analyzes key files (README.md, CODEOWNERS, etc.)
+4. **AI Processing**: If Azure OpenAI is configured, generates intelligent analysis and scoring
+5. **Issue Creation**: Creates a detailed DevEx Scorecard issue with recommendations and checklist
+6. **Interactive Updates**: Users can check the "Re-run AI analysis" box to trigger fresh analysis
 
 ## Scorecard Criteria
 
