@@ -1,5 +1,5 @@
-import { DefaultAzureCredential } from '@azure/identity';
-import OpenAI from 'openai';
+import { DefaultAzureCredential, AzureCliCredential, ManagedIdentityCredential, ChainedTokenCredential, getBearerTokenProvider } from '@azure/identity';
+import { AzureOpenAI } from 'openai';
 import { Octokit } from '@octokit/rest';
 
 export interface ScorecardResult {
@@ -13,6 +13,7 @@ export interface AgentConfig {
   endpoint: string;
   deploymentName: string;
   apiKey?: string;
+  apiVersion?: string;
 }
 
 export interface RepoContext {
@@ -25,24 +26,38 @@ export interface RepoContext {
  * Service for interacting with Azure OpenAI to generate DevEx scorecards
  */
 export class AgentService {
-  private client: OpenAI;
+  private client: AzureOpenAI;
   private deploymentName: string;
 
   constructor(config: AgentConfig) {
     this.deploymentName = config.deploymentName;
     
     if (config.apiKey) {
-      this.client = new OpenAI({
+      // Use API key authentication
+      this.client = new AzureOpenAI({
+        endpoint: config.endpoint,
+        deployment: config.deploymentName,
         apiKey: config.apiKey,
-        baseURL: `${config.endpoint}/openai/deployments/${config.deploymentName}`,
-        defaultQuery: { 'api-version': '2024-02-15-preview' },
-        defaultHeaders: {
-          'api-key': config.apiKey,
-        },
+        apiVersion: config.apiVersion || '2024-10-21',
       });
     } else {
-      // For now, require API key since Azure credential token handling is complex
-      throw new Error('Azure OpenAI API key is required');
+      // Use Azure authentication with chained credentials
+      // Priority: Azure CLI (for local development) -> Managed Identity (for production)
+      const credential = new ChainedTokenCredential(
+        new AzureCliCredential(),
+        new ManagedIdentityCredential(),
+        new DefaultAzureCredential()
+      );
+      
+      const scope = 'https://cognitiveservices.azure.com/.default';
+      const azureADTokenProvider = getBearerTokenProvider(credential, scope);
+      
+      this.client = new AzureOpenAI({
+        endpoint: config.endpoint,
+        deployment: config.deploymentName,
+        azureADTokenProvider,
+        apiVersion: config.apiVersion || '2024-10-21',
+      });
     }
   }
 
@@ -110,7 +125,7 @@ export class AgentService {
       
       // Call Azure OpenAI to analyze the repository
       const response = await this.client.chat.completions.create({
-        model: this.deploymentName,
+        model: '', // Model is specified by deployment name in Azure OpenAI
         messages: [
           {
             role: 'system',

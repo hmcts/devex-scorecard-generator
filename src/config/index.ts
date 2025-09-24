@@ -11,6 +11,7 @@ export interface AppConfig {
     endpoint: string;
     deploymentName: string;
     apiKey?: string;
+    apiVersion?: string;
   };
 }
 
@@ -37,6 +38,7 @@ export function getConfig(): AppConfig {
       endpoint: process.env.AZURE_OPENAI_ENDPOINT,
       deploymentName: process.env.AZURE_OPENAI_DEPLOYMENT_NAME,
       apiKey: process.env.AZURE_OPENAI_API_KEY,
+      apiVersion: process.env.AZURE_OPENAI_API_VERSION,
     };
   }
 

@@ -10,7 +10,11 @@ async function generateScorecardExample() {
   const agentService = new AgentService({
     endpoint: 'https://your-resource.openai.azure.com/',
     deploymentName: 'gpt-4',
-    apiKey: 'your-api-key', // or use Azure managed identity
+    // Option 1: Use API key
+    apiKey: 'your-api-key',
+    // Option 2: For Azure CLI auth (local development), omit apiKey
+    // Option 3: For managed identity (production), omit apiKey
+    apiVersion: '2024-10-21', // Optional, defaults to 2024-10-21
   });
 
   // Initialize Octokit for GitHub API access
@@ -50,7 +54,8 @@ async function batchGenerateScorecard(repositories: Array<{owner: string, repo: 
   const agentService = new AgentService({
     endpoint: process.env.AZURE_OPENAI_ENDPOINT!,
     deploymentName: process.env.AZURE_OPENAI_DEPLOYMENT_NAME!,
-    apiKey: process.env.AZURE_OPENAI_API_KEY,
+    apiKey: process.env.AZURE_OPENAI_API_KEY, // Optional - uses Azure auth if not provided
+    apiVersion: process.env.AZURE_OPENAI_API_VERSION,
   });
 
   const octokit = new Octokit({
@@ -95,10 +100,39 @@ async function batchGenerateScorecard(repositories: Array<{owner: string, repo: 
   return results;
 }
 
+// Example showing Azure CLI authentication setup for local development
+async function setupLocalDevelopment() {
+  console.log('🔧 Setting up local development with Azure CLI authentication:');
+  console.log('');
+  console.log('1. Install Azure CLI: https://docs.microsoft.com/en-us/cli/azure/install-azure-cli');
+  console.log('2. Run: az login');
+  console.log('3. Ensure your account has "Cognitive Services OpenAI User" role on the Azure OpenAI resource');
+  console.log('4. Set environment variables (without AZURE_OPENAI_API_KEY):');
+  console.log('   AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/');
+  console.log('   AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4');
+  console.log('');
+  console.log('The AgentService will automatically use Azure CLI credentials!');
+}
+
+// Example showing managed identity setup for production
+async function setupProductionDeployment() {
+  console.log('🚀 Setting up production deployment with Managed Identity:');
+  console.log('');
+  console.log('1. Enable system-assigned managed identity on your Azure resource (App Service, Container Instance, etc.)');
+  console.log('2. Grant the managed identity "Cognitive Services OpenAI User" role on your Azure OpenAI resource');
+  console.log('3. Set environment variables (without AZURE_OPENAI_API_KEY):');
+  console.log('   AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/');
+  console.log('   AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4');
+  console.log('');
+  console.log('The AgentService will automatically use managed identity credentials!');
+}
+
 // Export functions for use in other modules
 export {
   generateScorecardExample,
   batchGenerateScorecard,
+  setupLocalDevelopment,
+  setupProductionDeployment,
 };
 
 // Example usage (uncomment to run directly)

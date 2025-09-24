@@ -1,15 +1,28 @@
 import { AgentService } from '../../src/services/agent';
 import { Octokit } from '@octokit/rest';
 
-// Mock OpenAI
+// Mock Azure OpenAI
 jest.mock('openai', () => {
-  return jest.fn().mockImplementation(() => ({
-    chat: {
-      completions: {
-        create: jest.fn(),
+  return {
+    AzureOpenAI: jest.fn().mockImplementation(() => ({
+      chat: {
+        completions: {
+          create: jest.fn(),
+        },
       },
-    },
-  }));
+    })),
+  };
+});
+
+// Mock Azure Identity
+jest.mock('@azure/identity', () => {
+  return {
+    DefaultAzureCredential: jest.fn(),
+    AzureCliCredential: jest.fn(),
+    ManagedIdentityCredential: jest.fn(),
+    ChainedTokenCredential: jest.fn(),
+    getBearerTokenProvider: jest.fn(),
+  };
 });
 
 // Mock Octokit
@@ -42,7 +55,7 @@ describe('AgentService', () => {
       }).not.toThrow();
     });
 
-    it('should throw error when no API key provided', () => {
+    it('should create instance without API key using Azure authentication', () => {
       const configWithoutKey = { 
         endpoint: mockConfig.endpoint,
         deploymentName: mockConfig.deploymentName
@@ -50,7 +63,7 @@ describe('AgentService', () => {
       
       expect(() => {
         new AgentService(configWithoutKey);
-      }).toThrow('Azure OpenAI API key is required');
+      }).not.toThrow();
     });
   });
 
@@ -73,7 +86,7 @@ describe('AgentService', () => {
           },
         });
 
-      // Mock OpenAI response
+      // Mock Azure OpenAI response
       const mockOpenAIResponse = {
         choices: [
           {
@@ -103,7 +116,7 @@ describe('AgentService', () => {
 
       expect(mockGetContent).toHaveBeenCalledTimes(2);
       expect(mockCreate).toHaveBeenCalledWith({
-        model: 'gpt-4',
+        model: '',
         messages: expect.arrayContaining([
           expect.objectContaining({ role: 'system' }),
           expect.objectContaining({ role: 'user' }),
@@ -119,7 +132,7 @@ describe('AgentService', () => {
         .mockRejectedValueOnce(new Error('File not found'))
         .mockRejectedValueOnce(new Error('File not found'));
 
-      // Mock OpenAI response
+      // Mock Azure OpenAI response
       const mockOpenAIResponse = {
         choices: [
           {
@@ -145,7 +158,7 @@ describe('AgentService', () => {
       expect(mockGetContent).toHaveBeenCalledTimes(2);
     });
 
-    it('should handle OpenAI API errors', async () => {
+    it('should handle Azure OpenAI API errors', async () => {
       // Mock GitHub API responses
       mockGetContent
         .mockResolvedValueOnce({
@@ -159,16 +172,16 @@ describe('AgentService', () => {
           },
         });
 
-      // Mock OpenAI error
+      // Mock Azure OpenAI error
       const mockCreate = agentService['client'].chat.completions.create as jest.Mock;
-      mockCreate.mockRejectedValue(new Error('OpenAI API error'));
+      mockCreate.mockRejectedValue(new Error('Azure OpenAI API error'));
 
       await expect(
         agentService.generateScorecard(mockOctokit, 'test-owner', 'test-repo')
-      ).rejects.toThrow('OpenAI API error');
+      ).rejects.toThrow('Azure OpenAI API error');
     });
 
-    it('should handle malformed OpenAI responses', async () => {
+    it('should handle malformed Azure OpenAI responses', async () => {
       // Mock GitHub API responses
       mockGetContent
         .mockResolvedValueOnce({
@@ -182,7 +195,7 @@ describe('AgentService', () => {
           },
         });
 
-      // Mock malformed OpenAI response
+      // Mock malformed Azure OpenAI response
       const mockOpenAIResponse = {
         choices: [
           {
@@ -207,7 +220,7 @@ describe('AgentService', () => {
       });
     });
 
-    it('should handle empty OpenAI response', async () => {
+    it('should handle empty Azure OpenAI response', async () => {
       // Mock GitHub API responses
       mockGetContent
         .mockResolvedValueOnce({
@@ -221,7 +234,7 @@ describe('AgentService', () => {
           },
         });
 
-      // Mock empty OpenAI response
+      // Mock empty Azure OpenAI response
       const mockOpenAIResponse = {
         choices: [],
       };
