@@ -6,11 +6,11 @@ import { AgentService } from '../src/services/agent';
 import { Octokit } from '@octokit/rest';
 
 async function generateScorecardExample() {
-  // Initialize the agent service with Azure OpenAI configuration
+  // Initialize the agent service with Azure AI Foundry configuration
   const agentService = new AgentService({
-    endpoint: 'https://your-resource.openai.azure.com/',
+    projectEndpoint: 'https://your-project.services.ai.azure.com/api/projects/your-project',
     deploymentName: 'gpt-4',
-    apiKey: 'your-api-key', // or use Azure managed identity
+    apiKey: 'your-api-key', // or use Azure managed identity (recommended)
   });
 
   // Initialize Octokit for GitHub API access
@@ -48,7 +48,7 @@ async function generateScorecardExample() {
 // Example of batch processing multiple repositories
 async function batchGenerateScorecard(repositories: Array<{owner: string, repo: string}>) {
   const agentService = new AgentService({
-    endpoint: process.env.AZURE_OPENAI_ENDPOINT!,
+    projectEndpoint: process.env.AZURE_AI_PROJECT_ENDPOINT!,
     deploymentName: process.env.AZURE_OPENAI_DEPLOYMENT_NAME!,
     apiKey: process.env.AZURE_OPENAI_API_KEY,
   });

@@ -8,9 +8,10 @@ export interface AppConfig {
   webhookSecret: string;
   homeDirectory: string;
   azure?: {
-    endpoint: string;
+    projectEndpoint: string;
     deploymentName: string;
     apiKey?: string;
+    apiVersion?: string;
   };
 }
 
@@ -31,12 +32,23 @@ export function getConfig(): AppConfig {
     homeDirectory: process.env.HOME || '',
   };
 
-  // Add Azure configuration if available
-  if (process.env.AZURE_OPENAI_ENDPOINT && process.env.AZURE_OPENAI_DEPLOYMENT_NAME) {
+  // Add Azure AI Foundry configuration if available
+  if (process.env.AZURE_AI_PROJECT_ENDPOINT && process.env.AZURE_AI_DEPLOYMENT_NAME) {
     config.azure = {
-      endpoint: process.env.AZURE_OPENAI_ENDPOINT,
-      deploymentName: process.env.AZURE_OPENAI_DEPLOYMENT_NAME,
-      apiKey: process.env.AZURE_OPENAI_API_KEY,
+      projectEndpoint: process.env.AZURE_AI_PROJECT_ENDPOINT,
+      deploymentName: process.env.AZURE_AI_DEPLOYMENT_NAME,
+      apiKey: process.env.AZURE_AI_API_KEY,
+      apiVersion: process.env.AZURE_AI_API_VERSION || '2024-12-01-preview',
+    };
+  }
+
+  // Legacy support for existing Azure OpenAI configuration
+  if (!config.azure && process.env.PROJECT_ENDPOINT && process.env.MODEL_DEPLOYMENT_NAME) {
+    config.azure = {
+      projectEndpoint: process.env.PROJECT_ENDPOINT,
+      deploymentName: process.env.MODEL_DEPLOYMENT_NAME,
+      apiKey: process.env.AZURE_AI_API_KEY,
+      apiVersion: process.env.AZURE_AI_API_VERSION || '2024-12-01-preview',
     };
   }
 
