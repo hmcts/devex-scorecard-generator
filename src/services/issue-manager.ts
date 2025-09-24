@@ -1,16 +1,25 @@
 import { Octokit } from '@octokit/rest';
-import { Repository, Issue } from '../types';
+import { Repository, Issue, ScorecardResult } from '../types';
 import { DEVEX_SCORECARD_TEMPLATE, generateScorecardRerunComment } from './scorecard-template';
+import { generateAIScorecardTemplate, generateAIScorecardRerunComment } from './ai-scorecard-template';
 import { GitHubAuthService } from './github-auth';
+import { AgentService } from './agent';
+import { config } from '../config';
 
 /**
  * Service responsible for managing DevEx Scorecard issues
  */
 export class IssueManagerService {
   private githubAuth: GitHubAuthService;
+  private agentService?: AgentService;
 
   constructor() {
     this.githubAuth = GitHubAuthService.getInstance();
+    
+    // Initialize AI agent service if Azure configuration is available
+    if (config.azure) {
+      this.agentService = new AgentService(config.azure);
+    }
   }
 
   /**
@@ -38,16 +47,34 @@ export class IssueManagerService {
   }
 
   /**
-   * Create a new DevEx Scorecard issue
+   * Create a new DevEx Scorecard issue with AI analysis
    */
-  public async createScorecardIssue(octokitInstance: Octokit, repository: Repository): Promise<any> {
-    console.log(`Creating new scorecard issue for ${repository.full_name}`);
+  public async createAIScorecardIssue(octokitInstance: Octokit, repository: Repository): Promise<any> {
+    console.log(`Creating new AI-powered scorecard issue for ${repository.full_name}`);
+    
+    let issueBody = DEVEX_SCORECARD_TEMPLATE; // Fallback to static template
+    
+    if (this.agentService) {
+      try {
+        const aiResult = await this.agentService.generateScorecard(
+          octokitInstance,
+          repository.owner.login,
+          repository.name
+        );
+        issueBody = generateAIScorecardTemplate(aiResult);
+        console.log(`AI analysis completed for ${repository.full_name} - Score: ${aiResult.score}`);
+      } catch (error) {
+        console.error(`AI analysis failed for ${repository.full_name}, using static template:`, error);
+      }
+    } else {
+      console.log(`AI service not configured, using static template for ${repository.full_name}`);
+    }
     
     const issue = await octokitInstance.rest.issues.create({
       owner: repository.owner.login,
       repo: repository.name,
       title: '🎯 DevEx Scorecard',
-      body: DEVEX_SCORECARD_TEMPLATE,
+      body: issueBody,
       labels: ['devex-scorecard', 'documentation']
     });
 
@@ -56,22 +83,40 @@ export class IssueManagerService {
   }
 
   /**
-   * Update an existing DevEx Scorecard issue
+   * Update an existing DevEx Scorecard issue with AI analysis
    */
-  public async updateScorecardIssue(
+  public async updateAIScorecardIssue(
     octokitInstance: Octokit, 
     repository: Repository, 
     issueNumber: number,
     reopenIfClosed: boolean = true
   ): Promise<any> {
-    console.log(`Updating existing scorecard issue #${issueNumber} for ${repository.full_name}`);
+    console.log(`Updating existing scorecard issue #${issueNumber} for ${repository.full_name} with AI analysis`);
+    
+    let issueBody = DEVEX_SCORECARD_TEMPLATE; // Fallback to static template
+    
+    if (this.agentService) {
+      try {
+        const aiResult = await this.agentService.generateScorecard(
+          octokitInstance,
+          repository.owner.login,
+          repository.name
+        );
+        issueBody = generateAIScorecardTemplate(aiResult);
+        console.log(`AI analysis completed for ${repository.full_name} - Score: ${aiResult.score}`);
+      } catch (error) {
+        console.error(`AI analysis failed for ${repository.full_name}, using static template:`, error);
+      }
+    } else {
+      console.log(`AI service not configured, using static template for ${repository.full_name}`);
+    }
     
     const updateData: any = {
       owner: repository.owner.login,
       repo: repository.name,
       issue_number: issueNumber,
       title: '🎯 DevEx Scorecard',
-      body: DEVEX_SCORECARD_TEMPLATE,
+      body: issueBody,
       labels: ['devex-scorecard', 'documentation']
     };
 
@@ -110,13 +155,13 @@ export class IssueManagerService {
         console.log(`Found existing scorecard issue #${existingIssue.number} for ${repository.full_name}`);
         
         if (forceUpdate || existingIssue.state === 'closed') {
-          return await this.updateScorecardIssue(octokitInstance, repository, existingIssue.number);
+          return await this.updateAIScorecardIssue(octokitInstance, repository, existingIssue.number);
         } else {
           console.log(`Existing scorecard issue #${existingIssue.number} is already open for ${repository.full_name}. Skipping creation.`);
           return existingIssue;
         }
       } else {
-        return await this.createScorecardIssue(octokitInstance, repository);
+        return await this.createAIScorecardIssue(octokitInstance, repository);
       }
     } catch (error) {
       console.error(`Error creating/updating scorecard issue for ${repository.full_name}:`, error);
@@ -125,24 +170,44 @@ export class IssueManagerService {
   }
 
   /**
-   * Handle scorecard re-run request from issue edit
+   * Handle scorecard re-run request from issue edit with AI analysis
    */
   public async handleScorecardRerun(
     repository: Repository, 
     issue: Issue, 
     installationId: number
   ): Promise<void> {
-    console.log('Re-run scorecard requested');
+    console.log('Re-run AI scorecard requested');
 
     // Get installation-specific Octokit instance
     const installationOctokit = await this.githubAuth.getInstallationOctokit(installationId);
     
-    // Regenerate the scorecard by updating the issue with fresh template
+    let issueBody = DEVEX_SCORECARD_TEMPLATE;
+    let commentBody = generateScorecardRerunComment();
+    
+    if (this.agentService) {
+      try {
+        const aiResult = await this.agentService.generateScorecard(
+          installationOctokit,
+          repository.owner.login,
+          repository.name
+        );
+        issueBody = generateAIScorecardTemplate(aiResult);
+        commentBody = generateAIScorecardRerunComment(aiResult);
+        console.log(`AI re-analysis completed for ${repository.full_name} - Score: ${aiResult.score}`);
+      } catch (error) {
+        console.error(`AI re-analysis failed for ${repository.full_name}, using static template:`, error);
+      }
+    } else {
+      console.log(`AI service not configured, using static template for ${repository.full_name}`);
+    }
+    
+    // Regenerate the scorecard by updating the issue with fresh analysis
     await installationOctokit.rest.issues.update({
       owner: repository.owner.login,
       repo: repository.name,
       issue_number: issue.number,
-      body: DEVEX_SCORECARD_TEMPLATE
+      body: issueBody
     });
 
     // Add a comment indicating the re-run
@@ -150,7 +215,55 @@ export class IssueManagerService {
       owner: repository.owner.login,
       repo: repository.name,
       issue_number: issue.number,
-      body: generateScorecardRerunComment()
+      body: commentBody
     });
+  }
+
+  /**
+   * Create a new DevEx Scorecard issue (legacy method without AI)
+   */
+  public async createScorecardIssue(octokitInstance: Octokit, repository: Repository): Promise<any> {
+    console.log(`Creating new scorecard issue for ${repository.full_name}`);
+    
+    const issue = await octokitInstance.rest.issues.create({
+      owner: repository.owner.login,
+      repo: repository.name,
+      title: '🎯 DevEx Scorecard',
+      body: DEVEX_SCORECARD_TEMPLATE,
+      labels: ['devex-scorecard', 'documentation']
+    });
+
+    console.log(`Created issue #${issue.data.number} for ${repository.full_name}`);
+    return issue.data;
+  }
+
+  /**
+   * Update an existing DevEx Scorecard issue (legacy method without AI)
+   */
+  public async updateScorecardIssue(
+    octokitInstance: Octokit, 
+    repository: Repository, 
+    issueNumber: number,
+    reopenIfClosed: boolean = true
+  ): Promise<any> {
+    console.log(`Updating existing scorecard issue #${issueNumber} for ${repository.full_name}`);
+    
+    const updateData: any = {
+      owner: repository.owner.login,
+      repo: repository.name,
+      issue_number: issueNumber,
+      title: '🎯 DevEx Scorecard',
+      body: DEVEX_SCORECARD_TEMPLATE,
+      labels: ['devex-scorecard', 'documentation']
+    };
+
+    if (reopenIfClosed) {
+      updateData.state = 'open';
+    }
+
+    const updatedIssue = await octokitInstance.rest.issues.update(updateData);
+
+    console.log(`Updated issue #${issueNumber} for ${repository.full_name}`);
+    return updatedIssue.data;
   }
 }
