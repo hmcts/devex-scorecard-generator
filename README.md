@@ -57,7 +57,6 @@ Check github for certain settings (may require admin on the repo?).
 - [ ] Repo grants access to platops
 - [ ] Stale issues checker (> ~3 months)
 - [ ] Require branch to be up-to-date before merging
-- [ ] 
 
 ### Languages to Consider
 
