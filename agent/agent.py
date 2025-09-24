@@ -1,12 +1,11 @@
 import os
-from dotenv import load_dotenv
 from typing import Any
+from dotenv import load_dotenv
 from pathlib import Path
 from azure.identity import DefaultAzureCredential
 from azure.ai.agents import AgentsClient
 from azure.ai.agents.models import FunctionTool, ToolSet, ListSortOrder, MessageRole
 from user_functions import user_functions
-
 def main():
     load_dotenv()
     project_endpoint = os.getenv("PROJECT_ENDPOINT")
@@ -34,8 +33,7 @@ def main():
             name="DevEx Scorecard Generator Agent",
             model=model_deployment,
             instructions="""
-                Improve developer experience by generating scorecards based on key metrics and best practices.
-            """,
+        You are a helpful assistant that generates a developer experience scorecard for a given GitHub repository.""",
             toolset=toolset,
             metadata={"created_by": "agent-function.py", "purpose": "function_tool_demo"},
         )
@@ -70,12 +68,21 @@ def main():
         )
 
         # Get the conversation history
-        print("\nConversation Log:\n")
+        import json
         messages = agent_client.messages.list(thread_id=thread.id, order=ListSortOrder.ASCENDING)
         for message in messages:
-            if message.text_messages:
+            if message.role == MessageRole.AGENT and message.text_messages:
                 last_msg = message.text_messages[-1]
-                print(f"{message.role}: {last_msg.text.value}\n")
+                try:
+                    result = json.loads(last_msg.text.value)
+                    print(f"Score: {result.get('score')}")
+                    print(f"Summary (traffic light color): {result.get('color')}")
+                except Exception:
+                    print(last_msg.text.value)
+
+        # Delete resources
+        agent_client.threads.delete(thread_id=thread.id)
+        agent_client.delete_agent(agent_id=agent.id)
 
 if __name__ == '__main__':
     main()
