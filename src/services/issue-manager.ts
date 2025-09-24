@@ -1,5 +1,5 @@
 import { Octokit } from '@octokit/rest';
-import { Repository, Issue, ScorecardResult } from '../types';
+import { Repository, Issue } from '../types';
 import { DEVEX_SCORECARD_TEMPLATE, generateScorecardRerunComment } from './scorecard-template';
 import { generateAIScorecardTemplate, generateAIScorecardRerunComment } from './ai-scorecard-template';
 import { GitHubAuthService } from './github-auth';

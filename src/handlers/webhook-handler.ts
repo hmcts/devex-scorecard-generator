@@ -146,7 +146,7 @@ export class WebhookHandler {
 
       await this.issueManager.handleScorecardRerun(repository, issue, installation.id);
     } else {
-      console.log('Issue update does not match trigger for re-run. Doing nothing...')
+      console.log('Issue update does not match trigger for re-run. Doing nothing...');
     }
   }
 
