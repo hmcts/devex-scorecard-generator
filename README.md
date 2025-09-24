@@ -4,7 +4,7 @@ A GitHub Bot that automatically generates Developer Experience (DevEx) Scorecard
 
 ## Features
 
-- **AI-Powered Analysis**: Uses Azure OpenAI to intelligently analyze repositories and provide tailored recommendations
+- **AI-Powered Analysis**: Uses Azure AI Foundry Custom Agents to intelligently analyze repositories and provide tailored recommendations
 - **Automated Scorecard Generation**: Creates detailed GitHub issues with scoring and actionable recommendations  
 - **Smart Fallback**: Works with or without AI configuration - falls back to comprehensive static templates
 - **Easy Integration**: Simple GitHub App installation with webhook-based operation
@@ -14,7 +14,7 @@ A GitHub Bot that automatically generates Developer Experience (DevEx) Scorecard
 
 1. **Install the GitHub App** on your repositories
 2. **Automatic Analysis**: The bot analyzes repository content (README, CODEOWNERS, etc.)
-3. **AI Scoring**: If configured with Azure OpenAI, generates intelligent analysis and scoring (0-100)
+3. **AI Agent Analysis**: If configured with Azure AI Foundry, creates or uses an existing agent to generate intelligent analysis and scoring (0-100)
 4. **Issue Creation**: Creates a detailed DevEx Scorecard issue with recommendations
 5. **Re-run Capability**: Check a box in the issue to trigger fresh analysis
 
@@ -62,9 +62,10 @@ WEBHOOK_SECRET=your-webhook-secret
 
 ### Optional AI Configuration
 ```bash
-AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
-AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4
-AZURE_OPENAI_API_KEY=your-api-key
+AZURE_AI_PROJECT_ENDPOINT=https://your-project.services.ai.azure.com/api/projects/your-project
+AZURE_AI_DEPLOYMENT_NAME=gpt-4
+AZURE_AI_API_KEY=your-api-key
+AZURE_AI_AGENT_ID=optional-existing-agent-id
 ```
 
 ## API Usage
@@ -75,9 +76,10 @@ The agent service provides a simple interface for programmatic use:
 import { AgentService } from './src/services/agent';
 
 const agentService = new AgentService({
-  endpoint: 'https://your-resource.openai.azure.com/',
+  projectEndpoint: 'https://your-project.services.ai.azure.com/api/projects/your-project',
   deploymentName: 'gpt-4',
-  apiKey: 'your-api-key'
+  apiKey: 'your-api-key',
+  agentId: 'optional-existing-agent-id' // Use existing agent or create new one
 });
 
 const result = await agentService.generateScorecard(octokit, 'owner', 'repo');
@@ -124,16 +126,17 @@ Create a GitHub App with these permissions:
 
 - **TypeScript** with Node.js 18+ and Express.js
 - **GitHub API** integration via @octokit/rest
-- **Azure OpenAI** for AI-powered analysis (optional)
+- **Azure AI Foundry** for AI-powered analysis (optional)
 - **Webhook handling** with signature verification
 - **Jest testing** framework with comprehensive coverage
 - **Docker** containerization support
 
 ## Migration from Python
 
-This project has been migrated from Python (Azure AI Foundry) to TypeScript (Azure OpenAI) for better integration with the GitHub Bot infrastructure. The TypeScript implementation provides:
+This project has been migrated from Python (Azure AI Foundry) to TypeScript (Azure AI Foundry Custom Agents) for better integration with the GitHub Bot infrastructure. The TypeScript implementation provides:
 
 - Better integration with existing GitHub Bot codebase
+- Use of AI Foundry Custom Agents instead of direct OpenAI chat completion
 - Improved error handling and fallback mechanisms  
 - Comprehensive test coverage
 - Easier deployment and maintenance
