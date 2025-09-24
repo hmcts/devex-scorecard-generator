@@ -1,19 +1,34 @@
 import { AgentService } from '../../src/services/agent';
 import { Octokit } from '@octokit/rest';
 
-// Mock Azure AI Projects and Azure Identity
-const mockGetChatCompletions = jest.fn();
-const mockGetAzureOpenAIClient = jest.fn().mockResolvedValue({
-  chat: {
-    completions: {
-      create: mockGetChatCompletions,
-    },
+// Mock Azure AI Agents
+const mockCreateAgent = jest.fn();
+const mockGetAgent = jest.fn();
+const mockCreateThread = jest.fn();
+const mockCreateMessage = jest.fn();
+const mockDeleteThread = jest.fn();
+const mockCreateAndPoll = jest.fn();
+const mockListMessages = jest.fn();
+
+const mockAgentsClient = {
+  createAgent: mockCreateAgent,
+  getAgent: mockGetAgent,
+  threads: {
+    create: mockCreateThread,
+    delete: mockDeleteThread,
   },
-});
+  messages: {
+    create: mockCreateMessage,
+    list: mockListMessages,
+  },
+  runs: {
+    createAndPoll: mockCreateAndPoll,
+  },
+};
 
 jest.mock('@azure/ai-projects', () => ({
   AIProjectClient: jest.fn().mockImplementation(() => ({
-    getAzureOpenAIClient: mockGetAzureOpenAIClient,
+    agents: mockAgentsClient,
   })),
 }));
 
@@ -59,8 +74,13 @@ describe('AgentService', () => {
     mockListCommits.mockClear();
     mockListPulls.mockClear();
     mockListIssues.mockClear();
-    mockGetChatCompletions.mockClear();
-    mockGetAzureOpenAIClient.mockClear();
+    mockCreateAgent.mockClear();
+    mockGetAgent.mockClear();
+    mockCreateThread.mockClear();
+    mockCreateMessage.mockClear();
+    mockDeleteThread.mockClear();
+    mockCreateAndPoll.mockClear();
+    mockListMessages.mockClear();
   });
 
   describe('constructor', () => {
@@ -78,6 +98,17 @@ describe('AgentService', () => {
       
       expect(() => {
         new AgentService(configWithoutKey);
+      }).not.toThrow();
+    });
+
+    it('should create instance with existing agent ID', () => {
+      const configWithAgentId = { 
+        ...mockConfig,
+        agentId: 'existing-agent-123'
+      };
+      
+      expect(() => {
+        new AgentService(configWithAgentId);
       }).not.toThrow();
     });
   });
@@ -255,12 +286,36 @@ describe('AgentService', () => {
 
       setupMockResponses();
 
-      // Mock Azure OpenAI response
-      const mockAzureResponse = {
-        choices: [
-          {
-            message: {
-              content: JSON.stringify({
+      // Mock agent creation/retrieval
+      const mockAgent = { id: 'agent-123', name: 'DevEx Scorecard Analyzer' };
+      mockCreateAgent.mockResolvedValue(mockAgent);
+
+      // Mock thread creation
+      const mockThread = { id: 'thread-456' };
+      mockCreateThread.mockResolvedValue(mockThread);
+
+      // Mock message creation
+      mockCreateMessage.mockResolvedValue({ id: 'msg-789' });
+
+      // Mock successful run completion
+      const mockCompletedRun = { status: 'completed', id: 'run-abc' };
+      const mockPoller = {
+        pollUntilDone: jest.fn().mockResolvedValue(mockCompletedRun)
+      };
+      mockCreateAndPoll.mockReturnValue(mockPoller);
+
+      // Mock assistant response message
+      const mockMessages = [
+        {
+          role: 'user',
+          content: [{ type: 'text', text: { value: 'User prompt...' } }]
+        },
+        {
+          role: 'assistant',
+          content: [{ 
+            type: 'text', 
+            text: { 
+              value: JSON.stringify({
                 score: 82,
                 color: 'green',
                 analysis: 'This repository demonstrates excellent developer experience practices with comprehensive documentation, well-structured CI/CD pipeline, proper testing setup, and active maintenance. The README provides clear setup instructions, and the project structure follows TypeScript best practices.',
@@ -270,13 +325,23 @@ describe('AgentService', () => {
                   'Add issue templates for better bug reports',
                   'Consider adding API documentation'
                 ],
-              }),
-            },
-          },
-        ],
-      };
+              })
+            }
+          }]
+        }
+      ];
 
-      mockGetChatCompletions.mockResolvedValue(mockAzureResponse);
+      // Mock async iterator for messages
+      mockListMessages.mockReturnValue({
+        [Symbol.asyncIterator]: async function* () {
+          for (const message of mockMessages) {
+            yield message;
+          }
+        }
+      });
+
+      // Mock thread cleanup
+      mockDeleteThread.mockResolvedValue({ status: 'deleted' });
 
       const result = await agentService.generateScorecard(mockOctokit, 'test-owner', 'test-repo');
 
@@ -310,15 +375,20 @@ describe('AgentService', () => {
         per_page: 5,
       });
 
-      expect(mockGetChatCompletions).toHaveBeenCalledWith({
-        model: 'gpt-4',
-        messages: expect.arrayContaining([
-          expect.objectContaining({ role: 'system' }),
-          expect.objectContaining({ role: 'user' }),
-        ]), 
-        max_tokens: 2500,
-        temperature: 0.2,
-      });
+      // Verify agent workflow calls
+      expect(mockCreateAgent).toHaveBeenCalledWith('gpt-4', expect.objectContaining({
+        name: 'DevEx Scorecard Analyzer',
+        description: 'Analyzes GitHub repositories to generate developer experience scorecards',
+        instructions: expect.stringContaining('senior software engineering consultant'),
+        responseFormat: { type: 'json_object' }
+      }));
+      
+      expect(mockCreateThread).toHaveBeenCalled();
+      expect(mockCreateMessage).toHaveBeenCalledWith('thread-456', 'user', expect.stringContaining('Repository: test-owner/test-repo'));
+      expect(mockCreateAndPoll).toHaveBeenCalledWith('thread-456', 'agent-123', expect.objectContaining({
+        maxCompletionTokens: 2500,
+        temperature: 0.2
+      }));
     });
 
     it('should handle GitHub API errors gracefully', async () => {
@@ -354,12 +424,29 @@ describe('AgentService', () => {
       mockListPulls.mockResolvedValue({ data: [] });
       mockListIssues.mockResolvedValue({ data: [] });
 
-      // Mock Azure OpenAI response
-      const mockAzureResponse = {
-        choices: [
-          {
-            message: {
-              content: JSON.stringify({
+      // Mock agent and workflow for minimal case
+      const mockAgent = { id: 'agent-123', name: 'DevEx Scorecard Analyzer' };
+      mockCreateAgent.mockResolvedValue(mockAgent);
+      
+      const mockThread = { id: 'thread-456' };
+      mockCreateThread.mockResolvedValue(mockThread);
+      
+      mockCreateMessage.mockResolvedValue({ id: 'msg-789' });
+      
+      const mockCompletedRun = { status: 'completed', id: 'run-abc' };
+      const mockPoller = {
+        pollUntilDone: jest.fn().mockResolvedValue(mockCompletedRun)
+      };
+      mockCreateAndPoll.mockReturnValue(mockPoller);
+
+      // Mock assistant response for minimal repo
+      const mockMessages = [
+        {
+          role: 'assistant',
+          content: [{ 
+            type: 'text', 
+            text: { 
+              value: JSON.stringify({
                 score: 25,
                 color: 'red',
                 analysis: 'This repository has very limited developer experience setup. Most essential files are missing, including README, documentation, and project configuration files.',
@@ -370,13 +457,21 @@ describe('AgentService', () => {
                   'Set up CI/CD pipeline',
                   'Add testing framework'
                 ],
-              }),
-            },
-          },
-        ],
-      };
+              })
+            }
+          }]
+        }
+      ];
 
-      mockGetChatCompletions.mockResolvedValue(mockAzureResponse);
+      mockListMessages.mockReturnValue({
+        [Symbol.asyncIterator]: async function* () {
+          for (const message of mockMessages) {
+            yield message;
+          }
+        }
+      });
+
+      mockDeleteThread.mockResolvedValue({ status: 'deleted' });
 
       const result = await agentService.generateScorecard(mockOctokit, 'test-owner', 'test-repo');
 
@@ -391,7 +486,7 @@ describe('AgentService', () => {
       });
     });
 
-    it('should handle OpenAI API errors', async () => {
+    it('should handle AI Foundry Agent API errors', async () => {
       // Mock basic GitHub API responses
       mockGetContent.mockImplementation((params) => {
         if (params.path === 'README.md') {
@@ -429,15 +524,15 @@ describe('AgentService', () => {
       mockListPulls.mockResolvedValue({ data: [] });
       mockListIssues.mockResolvedValue({ data: [] });
 
-      // Mock Azure OpenAI error
-      mockGetChatCompletions.mockRejectedValue(new Error('Azure OpenAI API error'));
+      // Mock agent creation error
+      mockCreateAgent.mockRejectedValue(new Error('Agent creation failed'));
 
       await expect(
         agentService.generateScorecard(mockOctokit, 'test-owner', 'test-repo')
-      ).rejects.toThrow('Azure OpenAI API error');
+      ).rejects.toThrow('Agent creation failed');
     });
 
-    it('should handle malformed OpenAI responses', async () => {
+    it('should handle malformed Agent responses', async () => {
       // Mock basic GitHub API responses
       mockGetContent.mockImplementation((params) => {
         if (params.path === 'README.md') {
@@ -475,18 +570,43 @@ describe('AgentService', () => {
       mockListPulls.mockResolvedValue({ data: [] });
       mockListIssues.mockResolvedValue({ data: [] });
 
-      // Mock malformed Azure OpenAI response
-      const mockAzureResponse = {
-        choices: [
-          {
-            message: {
-              content: 'This is not valid JSON response - the AI failed to format properly',
-            },
-          },
-        ],
+      // Mock agent and workflow setup
+      const mockAgent = { id: 'agent-123', name: 'DevEx Scorecard Analyzer' };
+      mockCreateAgent.mockResolvedValue(mockAgent);
+      
+      const mockThread = { id: 'thread-456' };
+      mockCreateThread.mockResolvedValue(mockThread);
+      
+      mockCreateMessage.mockResolvedValue({ id: 'msg-789' });
+      
+      const mockCompletedRun = { status: 'completed', id: 'run-abc' };
+      const mockPoller = {
+        pollUntilDone: jest.fn().mockResolvedValue(mockCompletedRun)
       };
+      mockCreateAndPoll.mockReturnValue(mockPoller);
 
-      mockGetChatCompletions.mockResolvedValue(mockAzureResponse);
+      // Mock malformed agent response
+      const mockMessages = [
+        {
+          role: 'assistant',
+          content: [{ 
+            type: 'text', 
+            text: { 
+              value: 'This is not valid JSON response - the AI failed to format properly'
+            }
+          }]
+        }
+      ];
+
+      mockListMessages.mockReturnValue({
+        [Symbol.asyncIterator]: async function* () {
+          for (const message of mockMessages) {
+            yield message;
+          }
+        }
+      });
+
+      mockDeleteThread.mockResolvedValue({ status: 'deleted' });
 
       const result = await agentService.generateScorecard(mockOctokit, 'test-owner', 'test-repo');
 
@@ -499,7 +619,7 @@ describe('AgentService', () => {
       });
     });
 
-    it('should handle empty OpenAI response', async () => {
+    it('should handle empty Agent response', async () => {
       // Mock basic GitHub API responses
       mockGetContent.mockImplementation((params) => {
         if (params.path === 'README.md') {
@@ -537,12 +657,31 @@ describe('AgentService', () => {
       mockListPulls.mockResolvedValue({ data: [] });
       mockListIssues.mockResolvedValue({ data: [] });
 
-      // Mock empty Azure OpenAI response
-      const mockAzureResponse = {
-        choices: [],
+      // Mock agent and workflow setup
+      const mockAgent = { id: 'agent-123', name: 'DevEx Scorecard Analyzer' };
+      mockCreateAgent.mockResolvedValue(mockAgent);
+      
+      const mockThread = { id: 'thread-456' };
+      mockCreateThread.mockResolvedValue(mockThread);
+      
+      mockCreateMessage.mockResolvedValue({ id: 'msg-789' });
+      
+      const mockCompletedRun = { status: 'completed', id: 'run-abc' };
+      const mockPoller = {
+        pollUntilDone: jest.fn().mockResolvedValue(mockCompletedRun)
       };
+      mockCreateAndPoll.mockReturnValue(mockPoller);
 
-      mockGetChatCompletions.mockResolvedValue(mockAzureResponse);
+      // Mock empty messages (no assistant response)
+      const mockMessages: any[] = [];
+
+      mockListMessages.mockReturnValue({
+        [Symbol.asyncIterator]: async function* () {
+          for (const message of mockMessages) {
+            yield message;
+          }
+        }
+      });
 
       await expect(
         agentService.generateScorecard(mockOctokit, 'test-owner', 'test-repo')

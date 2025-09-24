@@ -1,5 +1,6 @@
 import { DefaultAzureCredential } from '@azure/identity';
 import { AIProjectClient } from '@azure/ai-projects';
+import { AgentsClient, Agent } from '@azure/ai-agents';
 import { Octokit } from '@octokit/rest';
 
 export interface ScorecardResult {
@@ -14,6 +15,7 @@ export interface AgentConfig {
   deploymentName: string;
   apiKey?: string;
   apiVersion?: string;
+  agentId?: string;
 }
 
 export interface RepoContext {
@@ -127,13 +129,15 @@ export interface RepoContext {
  */
 export class AgentService {
   private projectClient: AIProjectClient;
-  private chatClient: any = null;
+  private agentsClient: AgentsClient | null = null;
   private deploymentName: string;
   private apiVersion: string;
+  private agentId?: string;
 
   constructor(config: AgentConfig) {
     this.deploymentName = config.deploymentName;
     this.apiVersion = config.apiVersion || '2024-12-01-preview';
+    this.agentId = config.agentId;
 
     // Create Azure AI Project client with proper authentication
     const credential = new DefaultAzureCredential();
@@ -141,15 +145,70 @@ export class AgentService {
   }
 
   /**
-   * Get or initialize the Azure OpenAI chat client
+   * Get or initialize the Azure AI Agents client
    */
-  private async getChatClient(): Promise<any> {
-    if (!this.chatClient) {
-      this.chatClient = await this.projectClient.getAzureOpenAIClient({
-        apiVersion: this.apiVersion,
-      });
+  private async getAgentsClient(): Promise<AgentsClient> {
+    if (!this.agentsClient) {
+      this.agentsClient = this.projectClient.agents;
     }
-    return this.chatClient;
+    return this.agentsClient;
+  }
+
+  /**
+   * Get or create the DevEx analysis agent
+   */
+  private async getOrCreateAgent(): Promise<Agent> {
+    const agentsClient = await this.getAgentsClient();
+    
+    // If agentId is provided, use existing agent
+    if (this.agentId) {
+      try {
+        return await agentsClient.getAgent(this.agentId);
+      } catch (error) {
+        console.error(`Failed to get agent ${this.agentId}:`, error);
+        throw new Error(`Agent ${this.agentId} not found or inaccessible`);
+      }
+    }
+
+    // Create a new agent for DevEx analysis
+    const instructions = `You are a senior software engineering consultant specializing in developer experience (DevEx) evaluation. You analyze GitHub repositories comprehensively to assess how easy and pleasant it is for developers to contribute to and work with a project.
+
+Your expertise covers:
+- Repository structure and organization best practices
+- Documentation quality and completeness  
+- Development workflow optimization
+- CI/CD pipeline evaluation
+- Testing strategies and coverage
+- Security practices and vulnerability management
+- Community building and collaboration tools
+- Onboarding experience for new contributors
+- Maintenance practices and project health indicators
+
+You provide detailed, constructive analysis with specific, actionable recommendations that will have measurable impact on developer productivity and satisfaction. Your scoring is calibrated against industry best practices and real-world project examples.
+
+When analyzing a repository, always respond with valid JSON in this exact format:
+{
+  "score": <number between 0-100>,
+  "color": "<red|yellow|green>",
+  "analysis": "<detailed multi-paragraph analysis>",
+  "recommendations": ["<specific actionable recommendation 1>", "<specific actionable recommendation 2>", ...]
+}
+
+Use this scoring guide:
+- 90-100 (Green): Excellent developer experience, comprehensive setup, very well maintained
+- 80-89 (Green): Very good developer experience, minor improvements possible  
+- 70-79 (Green): Good developer experience, some areas for enhancement
+- 60-69 (Yellow): Moderate developer experience, several improvement opportunities
+- 50-59 (Yellow): Below average developer experience, needs attention
+- 40-49 (Yellow): Poor developer experience, significant issues present
+- 0-39 (Red): Very poor developer experience, major overhaul needed`;
+
+    return await agentsClient.createAgent(this.deploymentName, {
+      name: 'DevEx Scorecard Analyzer',
+      description: 'Analyzes GitHub repositories to generate developer experience scorecards',
+      instructions,
+      responseFormat: { type: 'json_object' }
+    });
   }
 
   /**
@@ -535,7 +594,7 @@ export class AgentService {
   }
 
   /**
-   * Generate a developer experience scorecard using AI
+   * Generate a developer experience scorecard using AI Foundry Agent
    */
   public async generateScorecard(
     octokit: Octokit,
@@ -543,54 +602,68 @@ export class AgentService {
     repo: string
   ): Promise<ScorecardResult> {
     try {
-      console.log(`Generating scorecard for ${owner}/${repo}`);
+      console.log(`Generating scorecard for ${owner}/${repo} using AI Foundry Agent`);
 
       // Fetch repository context
       const context = await this.fetchRepoContext(octokit, owner, repo);
 
-      // Create the prompt for AI analysis
+      // Create the analysis prompt for the agent
       const prompt = this.createAnalysisPrompt(owner, repo, context);
 
-      // Get the Azure OpenAI client and call it to analyze the repository
-      const chatClient = await this.getChatClient();
-      const response = await chatClient.chat.completions.create({
-        model: this.deploymentName,
-        messages: [
-          {
-            role: 'system',
-            content: `You are a senior software engineering consultant specializing in developer experience (DevEx) evaluation. You analyze GitHub repositories comprehensively to assess how easy and pleasant it is for developers to contribute to and work with a project.
+      // Get the AI agent
+      const agent = await this.getOrCreateAgent();
+      const agentsClient = await this.getAgentsClient();
 
-Your expertise covers:
-- Repository structure and organization best practices
-- Documentation quality and completeness  
-- Development workflow optimization
-- CI/CD pipeline evaluation
-- Testing strategies and coverage
-- Security practices and vulnerability management
-- Community building and collaboration tools
-- Onboarding experience for new contributors
-- Maintenance practices and project health indicators
+      console.log(`Using agent ${agent.id} for analysis`);
 
-You provide detailed, constructive analysis with specific, actionable recommendations that will have measurable impact on developer productivity and satisfaction. Your scoring is calibrated against industry best practices and real-world project examples.
+      // Create a thread for this analysis
+      const thread = await agentsClient.threads.create();
 
-Always respond with valid JSON in the exact format requested.`
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        max_tokens: 2500,
+      // Add the repository context as a message to the thread
+      await agentsClient.messages.create(thread.id, 'user', prompt);
+
+      // Create and execute a run with polling
+      const runPoller = agentsClient.runs.createAndPoll(thread.id, agent.id, {
+        maxCompletionTokens: 2500,
         temperature: 0.2
       });
 
-      const result = response.choices[0]?.message?.content;
-      if (!result) {
+      // Wait for completion
+      const completedRun = await runPoller.pollUntilDone();
+      
+      if (completedRun.status !== 'completed') {
+        throw new Error(`Agent run failed with status: ${completedRun.status}`);
+      }
+
+      // Get the messages from the thread to find the agent's response
+      const messages = agentsClient.messages.list(thread.id);
+      let agentResponse: string | null = null;
+      
+      for await (const message of messages) {
+        if (message.role === 'assistant' && message.content && message.content.length > 0) {
+          const content = message.content[0];
+          if (content.type === 'text' && 'text' in content) {
+            agentResponse = (content as any).text.value;
+            break;
+          }
+        }
+      }
+
+      if (!agentResponse) {
         throw new Error('No response from AI agent');
       }
 
       // Parse the AI response
-      return this.parseAIResponse(result);
+      const result = this.parseAIResponse(agentResponse);
+      
+      // Clean up the thread (optional)
+      try {
+        await agentsClient.threads.delete(thread.id);
+      } catch (cleanupError) {
+        console.warn('Failed to cleanup thread:', cleanupError);
+      }
+
+      return result;
 
     } catch (error) {
       console.error(`Error generating scorecard for ${owner}/${repo}:`, error);
@@ -651,64 +724,7 @@ ${configFiles.join('\n\n')}
 ## GitHub Integration Files
 ${githubFiles.join('\n\n')}
 
-## Analysis Instructions
-
-Please analyze this repository comprehensively and provide a JSON response with the following structure:
-{
-  "score": <number between 0-100>,
-  "color": "<red|yellow|green>",
-  "analysis": "<detailed multi-paragraph analysis covering all aspects below>",
-  "recommendations": ["<specific actionable recommendation 1>", "<specific actionable recommendation 2>", "<specific actionable recommendation 3>", ...]
-}
-
-### Evaluation Criteria (weight each appropriately):
-
-**Documentation & Onboarding (25 points):**
-- README quality, setup instructions, examples
-- Contributing guidelines, code of conduct
-- API documentation, inline comments
-- Getting started experience
-
-**Project Structure & Code Quality (20 points):**
-- Directory organization and naming conventions  
-- Configuration management
-- Dependency management and lock files
-- Code style and linting setup
-
-**Development Workflow (20 points):**
-- Testing setup and coverage
-- CI/CD pipeline configuration
-- Build and deployment processes
-- Development environment setup (Docker, dev containers)
-
-**Community & Collaboration (15 points):**
-- Issue and PR templates
-- Code review processes
-- Community guidelines and templates
-- Responsive maintenance (recent commits, issue resolution)
-
-**Security & Best Practices (10 points):**
-- Security policies and practices
-- Dependency vulnerability management
-- Access controls and permissions
-- Environment variable handling
-
-**Project Health (10 points):**
-- Activity level and maintenance
-- Issue and PR management
-- Release processes
-- Community engagement
-
-### Scoring Guide:
-- **90-100 (Green)**: Excellent developer experience, comprehensive setup, very well maintained
-- **80-89 (Green)**: Very good developer experience, minor improvements possible  
-- **70-79 (Green)**: Good developer experience, some areas for enhancement
-- **60-69 (Yellow)**: Moderate developer experience, several improvement opportunities
-- **50-59 (Yellow)**: Below average developer experience, needs attention
-- **40-49 (Yellow)**: Poor developer experience, significant issues present
-- **0-39 (Red)**: Very poor developer experience, major overhaul needed
-
-Provide specific, actionable recommendations that would have the highest impact on improving the developer experience.`;
+Please analyze this repository and provide your assessment as JSON.`;
   }
 
   /**

@@ -1,5 +1,5 @@
 /**
- * Example showing how to use the AgentService for programmatic scorecard generation
+ * Example showing how to use the AgentService for programmatic scorecard generation with AI Foundry Agents
  */
 
 import { AgentService } from '../src/services/agent';
@@ -11,6 +11,7 @@ async function generateScorecardExample() {
     projectEndpoint: 'https://your-project.services.ai.azure.com/api/projects/your-project',
     deploymentName: 'gpt-4',
     apiKey: 'your-api-key', // or use Azure managed identity (recommended)
+    agentId: 'optional-existing-agent-id' // If provided, uses existing agent instead of creating new one
   });
 
   // Initialize Octokit for GitHub API access
@@ -49,8 +50,9 @@ async function generateScorecardExample() {
 async function batchGenerateScorecard(repositories: Array<{owner: string, repo: string}>) {
   const agentService = new AgentService({
     projectEndpoint: process.env.AZURE_AI_PROJECT_ENDPOINT!,
-    deploymentName: process.env.AZURE_OPENAI_DEPLOYMENT_NAME!,
-    apiKey: process.env.AZURE_OPENAI_API_KEY,
+    deploymentName: process.env.AZURE_AI_DEPLOYMENT_NAME!,
+    apiKey: process.env.AZURE_AI_API_KEY,
+    agentId: process.env.AZURE_AI_AGENT_ID, // Optional: use existing agent
   });
 
   const octokit = new Octokit({

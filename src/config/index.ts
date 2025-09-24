@@ -12,6 +12,7 @@ export interface AppConfig {
     deploymentName: string;
     apiKey?: string;
     apiVersion?: string;
+    agentId?: string;
   };
 }
 
@@ -39,6 +40,7 @@ export function getConfig(): AppConfig {
       deploymentName: process.env.AZURE_AI_DEPLOYMENT_NAME,
       apiKey: process.env.AZURE_AI_API_KEY,
       apiVersion: process.env.AZURE_AI_API_VERSION || '2024-12-01-preview',
+      agentId: process.env.AZURE_AI_AGENT_ID,
     };
   }
 
@@ -49,6 +51,7 @@ export function getConfig(): AppConfig {
       deploymentName: process.env.MODEL_DEPLOYMENT_NAME,
       apiKey: process.env.AZURE_AI_API_KEY,
       apiVersion: process.env.AZURE_AI_API_VERSION || '2024-12-01-preview',
+      agentId: process.env.AZURE_AI_AGENT_ID,
     };
   }
 
