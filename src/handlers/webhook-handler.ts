@@ -2,7 +2,6 @@ import { Request, Response } from 'express';
 import { WebhookPayload, Repository } from '../types';
 import { WebhookVerifierService } from '../services/webhook-verifier';
 import { IssueManagerService } from '../services/issue-manager';
-import { config } from '../config';
 
 /**
  * Handler for GitHub webhook events
