@@ -1,19 +1,28 @@
 import requests
-import os
 
-def fetch_mcp_metrics(repo_url, token):
-    mcp_api = "https://api.githubcopilot.com/mcp/repos"
-    headers = {"Authorization": f"Bearer {token}"}
-    response = requests.get(f"{mcp_api}?repo={repo_url}", headers=headers)
+def fetch_file_from_github(owner, repo, filename, token=None):
+    url = f"https://api.github.com/repos/{owner}/{repo}/contents/{filename}"
+    headers = {}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    response = requests.get(url, headers=headers)
+    print(f"Fetching {url} - Status: {response.status_code} - Response: {response.text}")
     if response.status_code == 200:
-        return response.json()
-    return {"error": f"Failed to fetch MCP metrics: {response.status_code}"}
+        import base64
+        content = response.json()["content"]
+        return base64.b64decode(content).decode("utf-8")
+    return f"{filename} not found or inaccessible."
 
-def generate_scorecard(owner, repo):
-    token = os.getenv("GITHUB_TOKEN")
-    if not token:
-        return {"error": "GITHUB_TOKEN not found in environment. Please set it in your .env file."}
-    repo_url = f"https://github.com/{owner}/{repo}"
-    metrics = fetch_mcp_metrics(repo_url, token)
+def fetch_repo_context_github(owner, repo, token):
+    files_to_read = ["README.md", "CODEOWNERS"]
+    context = {}
+    for filename in files_to_read:
+        content = fetch_file_from_github(owner, repo, filename, token)
+        context[filename] = content
+    return context
+
+def generate_scorecard(owner, repo, token):
+    context = fetch_repo_context_github(owner, repo, token)
+    return context
 
 user_functions = [generate_scorecard]

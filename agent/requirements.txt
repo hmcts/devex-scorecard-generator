@@ -2,3 +2,4 @@ python-dotenv
 azure-identity
 azure-ai-agents
 azure-ai-projects
+requests
