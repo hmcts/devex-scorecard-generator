@@ -1,78 +1,71 @@
 # DevEx Scorecard Generator
+This repository is for a hackathon project to create a Developer Experience (DevEx) Scorecard Generator.
 
-A GitHub Bot that automatically generates Developer Experience (DevEx) Scorecards for repositories. The bot creates an issue with comprehensive criteria to evaluate how easy it is for developers to use and contribute to your project.
+## Purpose
+The project aims to help teams measure and improve their developer experience by generating scorecards based on key metrics and best practices.
 
 ## Features
+- Automated scoring of repositories and projects
+- Customizable metrics for DevEx evaluation
+- Easy integration with CI/CD pipelines
 
-- **Automatic Issue Creation**: Creates a DevEx Scorecard issue when a repository is created or when the bot is installed
-- **Interactive Checkbox**: Includes a "Re-run scorecard" checkbox that allows users to request a fresh analysis
-- **Comprehensive Criteria**: Evaluates documentation, project structure, development setup, testing, CI/CD, security, and community aspects
+## Getting Started
+Clone the repository and follow the instructions to run the scorecard generator locally or in your CI/CD environment.
 
-## How It Works
+## Contributing
+Contributions and ideas from all hackathon participants are welcome!
 
-1. **Installation**: When the bot is installed on a repository or when a new repository is created
-2. **Issue Creation**: Automatically creates a "🎯 DevEx Scorecard" issue with evaluation criteria
-3. **Re-run Feature**: Users can check the "Re-run scorecard" checkbox to trigger a fresh analysis
-4. **Auto-update**: The bot automatically unchecks the box and adds a comment when re-run is completed
+## Requirements & Metrics
 
-## Scorecard Criteria
+A list of recommendations a repository should follow in order to achieve a high score. This list consists of various best practices and can serve as a checklist when creating a new repository or updating an old one.
 
-The generated scorecard evaluates repositories across multiple dimensions:
+### CI Checks
 
-- **📚 Documentation**: README, setup instructions, usage examples, contribution guidelines
-- **🏗️ Project Structure**: File organization, naming conventions, separation of concerns
-- **🔧 Development Setup**: Local development, dependency management, development scripts
-- **🧪 Testing**: Unit tests, coverage reporting, integration tests
-- **🚀 CI/CD**: Automated builds, testing, code quality checks
-- **🔒 Security**: Security best practices, vulnerability scanning, secrets management
-- **🤝 Community**: Issue templates, PR templates, code of conduct, license
+Check for the presence of certain functionality in the repository's defined `Jenkinsfile` or `azure-pipelines.yaml`. 
 
-## Installation & Setup
+- [ ] Static analyzer/linter (e.g. `terraform validate`, `pylint`, `ESLint`)
+- [ ] Dependency checker (Rennovate, `npm audit`, etc.)
+- [ ] No out-of-date dependencies (> ~3 months)
+- [ ] Security checks (`npm audit`, [CVE Check](https://app.opencve.io/cve/?product=terraform&vendor=hashicorp))
+- [ ] Code formatter (`prettier.js`, `terraform fmt`, `PEP 8`)
+- [ ] `.pre-commit-config.yaml` defined
 
-1. Clone the repository
-2. Install dependencies: `npm install`
-3. Build the TypeScript code: `npm run build`
-4. Copy `.env.example` to `.env` and configure your GitHub credentials
-5. Start the bot: `npm start`
+### Repository Content
 
-## Technical Stack
+Files that should be present in the repository.
 
-- **TypeScript** with Node.js 18+ and Express.js
-- GitHub API integration via @octokit/rest
-- Webhook handling with @octokit/webhooks
-- Jest testing framework with ts-jest and supertest
-- ESLint with TypeScript support for code quality
-- Docker containerization support
+- [ ] Has a `.gitignore` defined
+  - [ ] Sensible content in `.gitignore`
+  - [ ] See [github/gitignore](https://github.com/github/gitignore) for samples
+- [ ] Some CI pipeline present
+  - [ ] Not mixing CI solutions
+- [ ] No cache/temporary files hanging around (`.DS_Store`, etc.)
+- [ ] `README.md` defined contains necessaty information:
+  - [ ] What service/product does the repository relate to?
+  - [ ] What does the CI pipeline do?
+  - [ ] How to use/deploy the code.
+  - [ ] Structure outline.
 
-## Environment Variables
+### Github Settings
 
-- `GITHUB_TOKEN`: GitHub App token or Personal Access Token
-- `WEBHOOK_SECRET`: Secret for webhook verification
-- `PORT`: Server port (default: 3000)
+Check github for certain settings (may require admin on the repo?). 
 
-## Development
+- [ ] Branch protections on master
+- [ ] CI Checks before merge (azdo, jenkins, github actions)
+- [ ] Review required before merge
+- [ ] Repo grants access to platops
+- [ ] Stale issues checker (> ~3 months)
+- [ ] Require branch to be up-to-date before merging
 
-- `npm run build`: Build TypeScript to JavaScript
-- `npm run dev`: Start with nodemon and ts-node for development
-- `npm test`: Run tests
-- `npm run lint`: Run ESLint
-- `npm run lint:fix`: Fix ESLint issues
-- `npm run clean`: Remove build output
+### Languages to Consider
 
-## GitHub App Setup
+- Terraform
+- Javascript/Node.js
+- Python
+- Java
 
-To use this bot, you'll need to create a GitHub App with the following permissions:
+### CI Solutions to Consider
 
-- **Repository permissions**:
-  - Issues: Read & Write
-  - Metadata: Read
-  - Pull requests: Read
-
-- **Subscribe to events**:
-  - Repository
-  - Installation
-  - Issues
-
-## License
-
-MIT
+- Jenkins
+- Azure DevOps
+- Github Actions
