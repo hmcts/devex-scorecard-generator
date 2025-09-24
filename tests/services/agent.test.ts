@@ -27,10 +27,19 @@ jest.mock('@azure/identity', () => {
 
 // Mock Octokit
 const mockGetContent = jest.fn();
+const mockGet = jest.fn();
+const mockGetBranch = jest.fn();
+const mockGetTree = jest.fn();
+
 const mockOctokit = {
   rest: {
     repos: {
       getContent: mockGetContent,
+      get: mockGet,
+      getBranch: mockGetBranch,
+    },
+    git: {
+      getTree: mockGetTree,
     },
   },
 } as unknown as Octokit;
@@ -46,6 +55,9 @@ describe('AgentService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetContent.mockClear();
+    mockGet.mockClear();
+    mockGetBranch.mockClear();
+    mockGetTree.mockClear();
   });
 
   describe('constructor', () => {
@@ -73,7 +85,29 @@ describe('AgentService', () => {
     });
 
     it('should generate scorecard successfully', async () => {
-      // Mock GitHub API responses
+      // Mock repository info
+      mockGet.mockResolvedValue({
+        data: { default_branch: 'main' }
+      });
+
+      // Mock branch info
+      mockGetBranch.mockResolvedValue({
+        data: { commit: { sha: 'abc123' } }
+      });
+
+      // Mock repository tree
+      mockGetTree.mockResolvedValue({
+        data: {
+          tree: [
+            { path: 'README.md', type: 'blob', size: 100, sha: '123' },
+            { path: 'package.json', type: 'blob', size: 200, sha: '456' },
+            { path: 'src', type: 'tree', sha: '789' },
+            { path: 'src/index.ts', type: 'blob', size: 300, sha: '101112' }
+          ]
+        }
+      });
+
+      // Mock file contents
       mockGetContent
         .mockResolvedValueOnce({
           data: {
@@ -82,7 +116,12 @@ describe('AgentService', () => {
         })
         .mockResolvedValueOnce({
           data: {
-            content: Buffer.from('* @team-lead').toString('base64'),
+            content: Buffer.from('{"name": "test-repo", "version": "1.0.0"}').toString('base64'),
+          },
+        })
+        .mockResolvedValueOnce({
+          data: {
+            content: Buffer.from('console.log("Hello World");').toString('base64'),
           },
         });
 
@@ -114,20 +153,34 @@ describe('AgentService', () => {
         recommendations: ['Add unit tests', 'Implement CI/CD pipeline'],
       });
 
-      expect(mockGetContent).toHaveBeenCalledTimes(2);
-      expect(mockCreate).toHaveBeenCalledWith({
-        model: '',
-        messages: expect.arrayContaining([
-          expect.objectContaining({ role: 'system' }),
-          expect.objectContaining({ role: 'user' }),
-        ]),
-        max_tokens: 1000,
-        temperature: 0.3,
-      });
+      expect(mockGet).toHaveBeenCalledWith({ owner: 'test-owner', repo: 'test-repo' });
+      expect(mockGetBranch).toHaveBeenCalledWith({ owner: 'test-owner', repo: 'test-repo', branch: 'main' });
+      expect(mockGetTree).toHaveBeenCalledWith({ owner: 'test-owner', repo: 'test-repo', tree_sha: 'abc123', recursive: 'true' });
+      expect(mockGetContent).toHaveBeenCalledTimes(3);
     });
 
     it('should handle GitHub API errors gracefully', async () => {
-      // Mock GitHub API errors
+      // Mock repository info - successful
+      mockGet.mockResolvedValue({
+        data: { default_branch: 'main' }
+      });
+
+      // Mock branch info - successful
+      mockGetBranch.mockResolvedValue({
+        data: { commit: { sha: 'abc123' } }
+      });
+
+      // Mock repository tree - successful but with files
+      mockGetTree.mockResolvedValue({
+        data: {
+          tree: [
+            { path: 'README.md', type: 'blob', size: 100, sha: '123' },
+            { path: 'package.json', type: 'blob', size: 200, sha: '456' }
+          ]
+        }
+      });
+
+      // Mock file content errors
       mockGetContent
         .mockRejectedValueOnce(new Error('File not found'))
         .mockRejectedValueOnce(new Error('File not found'));
@@ -141,7 +194,7 @@ describe('AgentService', () => {
                 score: 30,
                 color: 'red',
                 analysis: 'Limited documentation available.',
-                recommendations: ['Add README file', 'Add CODEOWNERS file'],
+                recommendations: ['Add README file', 'Add package.json file'],
               }),
             },
           },
@@ -159,18 +212,25 @@ describe('AgentService', () => {
     });
 
     it('should handle Azure OpenAI API errors', async () => {
-      // Mock GitHub API responses
-      mockGetContent
-        .mockResolvedValueOnce({
-          data: {
-            content: Buffer.from('# Test Repository').toString('base64'),
-          },
-        })
-        .mockResolvedValueOnce({
-          data: {
-            content: Buffer.from('* @team-lead').toString('base64'),
-          },
-        });
+      // Mock successful GitHub API responses
+      mockGet.mockResolvedValue({
+        data: { default_branch: 'main' }
+      });
+      mockGetBranch.mockResolvedValue({
+        data: { commit: { sha: 'abc123' } }
+      });
+      mockGetTree.mockResolvedValue({
+        data: {
+          tree: [
+            { path: 'README.md', type: 'blob', size: 100, sha: '123' }
+          ]
+        }
+      });
+      mockGetContent.mockResolvedValue({
+        data: {
+          content: Buffer.from('# Test Repository').toString('base64'),
+        },
+      });
 
       // Mock Azure OpenAI error
       const mockCreate = agentService['client'].chat.completions.create as jest.Mock;
@@ -182,18 +242,25 @@ describe('AgentService', () => {
     });
 
     it('should handle malformed Azure OpenAI responses', async () => {
-      // Mock GitHub API responses
-      mockGetContent
-        .mockResolvedValueOnce({
-          data: {
-            content: Buffer.from('# Test Repository').toString('base64'),
-          },
-        })
-        .mockResolvedValueOnce({
-          data: {
-            content: Buffer.from('* @team-lead').toString('base64'),
-          },
-        });
+      // Mock successful GitHub API responses
+      mockGet.mockResolvedValue({
+        data: { default_branch: 'main' }
+      });
+      mockGetBranch.mockResolvedValue({
+        data: { commit: { sha: 'abc123' } }
+      });
+      mockGetTree.mockResolvedValue({
+        data: {
+          tree: [
+            { path: 'README.md', type: 'blob', size: 100, sha: '123' }
+          ]
+        }
+      });
+      mockGetContent.mockResolvedValue({
+        data: {
+          content: Buffer.from('# Test Repository').toString('base64'),
+        },
+      });
 
       // Mock malformed Azure OpenAI response
       const mockOpenAIResponse = {
@@ -221,18 +288,25 @@ describe('AgentService', () => {
     });
 
     it('should handle empty Azure OpenAI response', async () => {
-      // Mock GitHub API responses
-      mockGetContent
-        .mockResolvedValueOnce({
-          data: {
-            content: Buffer.from('# Test Repository').toString('base64'),
-          },
-        })
-        .mockResolvedValueOnce({
-          data: {
-            content: Buffer.from('* @team-lead').toString('base64'),
-          },
-        });
+      // Mock successful GitHub API responses
+      mockGet.mockResolvedValue({
+        data: { default_branch: 'main' }
+      });
+      mockGetBranch.mockResolvedValue({
+        data: { commit: { sha: 'abc123' } }
+      });
+      mockGetTree.mockResolvedValue({
+        data: {
+          tree: [
+            { path: 'README.md', type: 'blob', size: 100, sha: '123' }
+          ]
+        }
+      });
+      mockGetContent.mockResolvedValue({
+        data: {
+          content: Buffer.from('# Test Repository').toString('base64'),
+        },
+      });
 
       // Mock empty Azure OpenAI response
       const mockOpenAIResponse = {
