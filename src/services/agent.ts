@@ -1,6 +1,6 @@
 import { DefaultAzureCredential } from '@azure/identity';
 import { AIProjectClient } from '@azure/ai-projects';
-import { AgentsClient, Agent, ThreadRun, AgentThread, ThreadMessage } from '@azure/ai-agents';
+import { AgentsClient, Agent } from '@azure/ai-agents';
 import { Octokit } from '@octokit/rest';
 
 export interface ScorecardResult {
