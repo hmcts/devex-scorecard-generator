@@ -1,3 +1,5 @@
+# DevEx Scorecard Generator
+
 A GitHub Bot that automatically generates Developer Experience (DevEx) Scorecards for repositories. The bot creates an issue with comprehensive criteria to evaluate how easy it is for developers to use and contribute to your project.
 
 ## Features
@@ -33,6 +35,89 @@ The generated scorecard evaluates repositories across multiple dimensions:
 4. Copy `.env.example` to `.env` and configure your GitHub credentials
 5. Start the bot: `npm start`
 
+## Running Locally
+
+### Prerequisites
+- Node.js 18+ installed
+- A GitHub App or Personal Access Token (see [SETUP.md](./SETUP.md) for GitHub App creation)
+
+### Quick Start
+
+1. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+
+2. **Set up environment variables**:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your actual GitHub credentials
+   ```
+
+3. **Build and start**:
+   ```bash
+   npm run build
+   npm start
+   ```
+
+   Or for development with hot reload:
+   ```bash
+   npm run dev
+   ```
+
+4. **Test the bot**:
+   - Visit `http://localhost:3000` for bot info
+   - Visit `http://localhost:3000/health` for health check
+
+### Webhook Testing
+
+**Note**: GitHub webhooks won't work with localhost by default. For local webhook testing:
+
+#### Option 1: Use ngrok (Recommended)
+```bash
+# Install ngrok
+brew install ngrok
+
+# Start your bot
+npm run dev
+
+# In another terminal, expose your local server
+ngrok http 3000
+
+# Update your GitHub App webhook URL to: https://abc123.ngrok.io/webhook
+```
+
+#### Option 2: Test webhooks manually
+```bash
+# Simulate a repository creation event
+curl -X POST http://localhost:3000/webhook \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "created",
+    "repository": {
+      "name": "test-repo",
+      "full_name": "owner/test-repo",
+      "owner": { "login": "owner" }
+    }
+  }'
+```
+
+#### Option 3: Use the test script
+```bash
+chmod +x scripts/test-start.sh
+./scripts/test-start.sh
+```
+
+### Environment Variables
+
+Required in your `.env` file:
+```bash
+GITHUB_TOKEN=your_github_app_installation_token
+WEBHOOK_SECRET=your_webhook_secret
+PORT=3000
+NODE_ENV=development
+```
+
 ## Technical Stack
 
 - **TypeScript** with Node.js 18+ and Express.js
@@ -41,12 +126,6 @@ The generated scorecard evaluates repositories across multiple dimensions:
 - Jest testing framework with ts-jest and supertest
 - ESLint with TypeScript support for code quality
 - Docker containerization support
-
-## Environment Variables
-
-- `GITHUB_TOKEN`: GitHub App token or Personal Access Token
-- `WEBHOOK_SECRET`: Secret for webhook verification
-- `PORT`: Server port (default: 3000)
 
 ## Development
 
