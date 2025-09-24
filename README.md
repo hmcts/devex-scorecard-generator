@@ -1,5 +1,4 @@
 # DevEx Scorecard Generator
-
 This repository is for a hackathon project to create a Developer Experience (DevEx) Scorecard Generator.
 
 ## Purpose
