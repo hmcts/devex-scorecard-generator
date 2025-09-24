@@ -8,6 +8,7 @@
     "start": "node dist/index.js",
     "dev": "nodemon --exec ts-node src/index.ts",
     "test": "jest",
+    "test:ci": "jest --ci --coverage --passWithNoTests --detectOpenHandles --forceExit",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "clean": "rm -rf dist"

@@ -23,14 +23,6 @@ jest.mock('fs', () => ({
   readFileSync: jest.fn().mockReturnValue('mocked-private-key'),
 }));
 
-// Set required environment variables for tests
-process.env.GITHUB_APP_ID = '12345';
-process.env.GITHUB_PRIVATE_KEY_PATH = '/mock/path/to/private-key.pem';
-process.env.HOME = '/mock/home';
-process.env.WEBHOOK_SECRET = "It's a Secret to Everybody";
-process.env.NODE_ENV = 'test';
-process.env.PORT = '3001'; // Use different port for tests
-
 import request from 'supertest';
 import { createApp, startServer } from '../src/server';
 
