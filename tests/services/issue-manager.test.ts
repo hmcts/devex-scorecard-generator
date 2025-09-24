@@ -1,12 +1,15 @@
 jest.mock('../../src/services/github-auth');
+jest.mock('../../src/services/agent');
 
 import { IssueManagerService } from '../../src/services/issue-manager';
 import { GitHubAuthService } from '../../src/services/github-auth';
+import { AgentService } from '../../src/services/agent';
 import { Repository, Issue } from '../../src/types';
 
 describe('IssueManagerService', () => {
   let service: IssueManagerService;
   let mockGitHubAuth: jest.Mocked<GitHubAuthService>;
+  let mockAgentService: jest.Mocked<AgentService>;
   let mockOctokit: any;
 
   beforeEach(() => {
@@ -32,7 +35,18 @@ describe('IssueManagerService', () => {
       getPrivateKey: jest.fn(),
     } as any;
 
+    // Setup mock AgentService
+    mockAgentService = {
+      generateScorecard: jest.fn().mockResolvedValue({
+        score: 75,
+        color: 'green',
+        analysis: 'Test analysis',
+        recommendations: ['Test recommendation']
+      }),
+    } as any;
+
     (GitHubAuthService.getInstance as jest.Mock).mockReturnValue(mockGitHubAuth);
+    (AgentService as jest.Mock).mockImplementation(() => mockAgentService);
 
     service = new IssueManagerService();
   });
@@ -203,7 +217,7 @@ describe('IssueManagerService', () => {
         owner: 'owner',
         repo: 'test-repo',
         issue_number: 3,
-        body: expect.stringContaining('Scorecard re-run completed')
+        body: expect.stringContaining('AI Scorecard Analysis Completed')
       });
     });
   });

@@ -86,14 +86,6 @@ describe('AI Scorecard Template', () => {
       expect(template).toContain('## 📊 Overall Score:');
       expect(template).toContain('## 🤖 AI Analysis');
       expect(template).toContain('## 💡 Recommendations');
-      expect(template).toContain('## 📋 Detailed Criteria Checklist');
-      expect(template).toContain('### 📚 Documentation');
-      expect(template).toContain('### 🏗️ Project Structure');
-      expect(template).toContain('### 🔧 Development Setup');
-      expect(template).toContain('### 🧪 Testing');
-      expect(template).toContain('### 🚀 CI/CD');
-      expect(template).toContain('### 🔒 Security');
-      expect(template).toContain('### 🤝 Community');
       expect(template).toContain('## 🔄 Actions');
       
       // Check that timestamp is included

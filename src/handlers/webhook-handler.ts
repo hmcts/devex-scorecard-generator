@@ -135,7 +135,7 @@ export class WebhookHandler {
   ): Promise<void> {
     console.log('Issue edited event for scorecard');
 
-    if (issue.body.includes('- [x] **Re-run AI analysis**')) {
+    if (issue.body.includes('- [x] **Re-run AI analysis**') || issue.body.includes('- [x] **Re-run scorecard**')) {
       if (!repository) {
         throw new Error('Repository information missing from issue event');
       }
