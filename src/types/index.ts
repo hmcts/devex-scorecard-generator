@@ -47,10 +47,41 @@ export interface ScorecardResult {
   recommendations: string[];
 }
 
+export interface ScoreRange {
+  min: number;
+  max: number;
+  description: string;
+}
+
+export interface ScoringRanges {
+  excellent: ScoreRange;
+  veryGood: ScoreRange;
+  good: ScoreRange;
+  moderate: ScoreRange;
+  belowAverage: ScoreRange;
+  poor: ScoreRange;
+  veryPoor: ScoreRange;
+}
+
+export interface ScoringConfig {
+  /** Threshold for green/excellent scores */
+  greenThreshold: number;
+  /** Threshold for yellow/moderate scores */
+  yellowThreshold: number;
+  /** Threshold for red/poor scores (below this) */
+  redThreshold: number;
+  /** Default fallback score when parsing fails */
+  defaultScore: number;
+  /** Score ranges with their corresponding categories and descriptions */
+  ranges: ScoringRanges;
+}
+
 export interface AgentConfig {
   projectEndpoint: string;
   deploymentName: string;
   apiKey?: string;
   apiVersion?: string;
   agentId?: string;
+  /** Optional custom scoring configuration */
+  scoringConfig?: ScoringConfig;
 }

@@ -1,9 +1,15 @@
 import { RepoContext } from './repository-context';
+import { ScoringConfigService, defaultScoringConfig } from './scoring-config';
 
 /**
  * Service responsible for generating AI analysis prompts
  */
 export class PromptGenerationService {
+  private scoringConfig: ScoringConfigService;
+
+  constructor(scoringConfig?: ScoringConfigService) {
+    this.scoringConfig = scoringConfig || defaultScoringConfig;
+  }
   /**
    * Create comprehensive analysis prompt for the AI
    */
@@ -57,6 +63,8 @@ ${configFiles.join('\n\n')}
 ## GitHub Integration Files
 ${githubFiles.join('\n\n')}
 
-Please analyze this repository and provide your assessment as JSON.`;
+Please analyze this repository and provide your assessment as JSON.
+
+${this.scoringConfig.generateScoringGuide()}`;
   }
 }

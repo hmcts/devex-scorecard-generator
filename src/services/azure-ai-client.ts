@@ -4,6 +4,7 @@ import { AgentsClient, Agent } from '@azure/ai-agents';
 import { AgentConfig } from '../types';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
+import { ScoringConfigService } from './scoring-config';
 
 export interface AIConversation {
   threadId: string;
@@ -21,11 +22,13 @@ export class AzureAIClientService {
   private apiVersion: string;
   private agentId?: string;
   private cachedPrompt?: string;
+  private scoringConfig: ScoringConfigService;
 
   constructor(config: AgentConfig) {
     this.deploymentName = config.deploymentName;
     this.apiVersion = config.apiVersion || '2024-12-01-preview';
     this.agentId = config.agentId;
+    this.scoringConfig = new ScoringConfigService(config.scoringConfig);
 
     // Create Azure AI Project client with proper authentication
     const credential = new DefaultAzureCredential();
@@ -94,11 +97,15 @@ export class AzureAIClientService {
       
       const promptContent = await readFile(promptPath, 'utf-8');
       
+      // Replace the default scoring guide with the configured one
+      const dynamicScoringGuide = this.scoringConfig.generateScoringGuide();
+      const updatedPrompt = this.replaceScoringGuide(promptContent, dynamicScoringGuide);
+      
       // Extract just the prompt content, removing markdown formatting
-      const cleanPrompt = promptContent
+      const cleanPrompt = updatedPrompt
         .replace(/^#.*$/gm, '') // Remove headers
         .replace(/^```.*$/gm, '') // Remove code block markers
-        .replace(/^-\s+\*\*.*?\*\*:/gm, (match) => match.replace(/\*\*/g, '')) // Clean bullet points
+        .replace(/^-\s+\*\*.*?\*\*:/gm, (match: string) => match.replace(/\*\*/g, '')) // Clean bullet points
         .replace(/\n{3,}/g, '\n\n') // Normalize line breaks
         .trim();
       
@@ -107,10 +114,34 @@ export class AzureAIClientService {
     } catch (error) {
       console.error('Failed to load agent prompt from file:', error);
       // Fallback to a basic prompt if file loading fails
-      const fallbackPrompt = 'You are a DevEx analyzer. Analyze repositories and respond with JSON containing: score (0-100), color (red/yellow/green), analysis, and recommendations array.';
+      const fallbackPrompt = `You are a DevEx analyzer. Analyze repositories and respond with JSON containing: score (0-100), color (red/yellow/green), analysis, and recommendations array.\n\n${this.scoringConfig.generateScoringGuide()}`;
       this.cachedPrompt = fallbackPrompt;
       return fallbackPrompt;
     }
+  }
+
+  /**
+   * Replace the default scoring guide in the prompt with the configured one
+   */
+  private replaceScoringGuide(promptContent: string, dynamicScoringGuide: string): string {
+    // Find the scoring guide section in the markdown
+    const scoringGuideRegex = /## Scoring Guide\s*\n\s*Use this scoring guide:\s*\n\s*([\s\S]*?)(?=\n\s*$|\n\s*##|\n\s*```)/;
+    
+    // Replace the existing scoring guide with the dynamic one
+    if (scoringGuideRegex.test(promptContent)) {
+      return promptContent.replace(scoringGuideRegex, `## Scoring Guide\n\n${dynamicScoringGuide}`);
+    }
+    
+    // If no scoring guide section found, append it
+    console.warn('No scoring guide section found in prompt, appending dynamic guide');
+    return `${promptContent}\n\n## Scoring Guide\n\n${dynamicScoringGuide}`;
+  }
+
+  /**
+   * Clear cached prompt (useful when scoring configuration changes)
+   */
+  public clearPromptCache(): void {
+    this.cachedPrompt = undefined;
   }
 
   /**

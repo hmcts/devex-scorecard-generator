@@ -18,7 +18,7 @@ describe('AI Scorecard Template', () => {
 
       expect(template).toContain('# 🎯 DevEx Scorecard');
       expect(template).toContain('## 📊 Overall Score: 85/100 🟢');
-      expect(template).toContain('**Category:** Excellent');
+      expect(template).toContain('**Category:** Very Good'); // Score 85 = Very Good (80-89)
       expect(template).toContain('## 🤖 AI Analysis');
       expect(template).toContain('Excellent repository with comprehensive documentation and good practices.');
       expect(template).toContain('## 💡 Recommendations');
@@ -43,7 +43,7 @@ describe('AI Scorecard Template', () => {
       const template = generateAIScorecardTemplate(result);
 
       expect(template).toContain('## 📊 Overall Score: 60/100 🟡');
-      expect(template).toContain('**Category:** Good');
+      expect(template).toContain('**Category:** Moderate'); // Score 60 = Moderate (60-69)
       expect(template).toContain('Good foundation but room for improvement in several areas.');
       expect(template).toContain('1. Add comprehensive README');
       expect(template).toContain('2. Implement automated testing');

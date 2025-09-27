@@ -1,9 +1,15 @@
 import { ScorecardResult } from '../types';
+import { ScoringConfigService, defaultScoringConfig } from './scoring-config';
 
 /**
  * Service responsible for parsing AI responses into structured results
  */
 export class AIResponseParserService {
+  private scoringConfig: ScoringConfigService;
+
+  constructor(scoringConfig?: ScoringConfigService) {
+    this.scoringConfig = scoringConfig || defaultScoringConfig;
+  }
   /**
    * Parse AI response into structured result
    */
@@ -48,8 +54,9 @@ export class AIResponseParserService {
     const numScore = typeof score === 'number' ? score : parseInt(String(score), 10);
     
     if (isNaN(numScore)) {
-      console.warn('Invalid score value, defaulting to 50');
-      return 50;
+      const defaultScore = this.scoringConfig.getDefaultScore();
+      console.warn(`Invalid score value, defaulting to ${defaultScore}`);
+      return defaultScore;
     }
     
     // Clamp score between 0 and 100
@@ -65,10 +72,8 @@ export class AIResponseParserService {
       return providedColor as 'red' | 'yellow' | 'green';
     }
 
-    // Determine color based on score
-    if (score >= 70) return 'green';
-    if (score >= 50) return 'yellow';
-    return 'red';
+    // Determine color based on configured scoring thresholds
+    return this.scoringConfig.getScoreColor(score);
   }
 
   /**
@@ -105,9 +110,12 @@ export class AIResponseParserService {
    * Create fallback result when parsing fails
    */
   private createFallbackResult(response: string): ScorecardResult {
+    const defaultScore = this.scoringConfig.getDefaultScore();
+    const color = this.scoringConfig.getScoreColor(defaultScore);
+    
     return {
-      score: 50,
-      color: 'yellow',
+      score: defaultScore,
+      color,
       analysis: response || 'AI analysis failed to provide a structured response.',
       recommendations: ['Review repository documentation and structure']
     };

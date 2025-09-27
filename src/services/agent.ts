@@ -4,6 +4,7 @@ import { RepositoryContextService } from './repository-context';
 import { PromptGenerationService } from './prompt-generation';
 import { AIResponseParserService } from './ai-response-parser';
 import { AzureAIClientService } from './azure-ai-client';
+import { ScoringConfigService } from './scoring-config';
 
 /**
  * Service for orchestrating DevEx scorecard generation using AI
@@ -15,11 +16,13 @@ export class AgentService {
   private azureAIClient: AzureAIClientService;
   private promptService: PromptGenerationService;
   private responseParser: AIResponseParserService;
+  private scoringConfig: ScoringConfigService;
 
   constructor(config: AgentConfig) {
     this.azureAIClient = new AzureAIClientService(config);
-    this.promptService = new PromptGenerationService();
-    this.responseParser = new AIResponseParserService();
+    this.scoringConfig = new ScoringConfigService(config.scoringConfig);
+    this.promptService = new PromptGenerationService(this.scoringConfig);
+    this.responseParser = new AIResponseParserService(this.scoringConfig);
   }
 
 

@@ -124,5 +124,49 @@ describe('AzureAIClientService', () => {
       const service = new AzureAIClientService(mockConfig);
       expect(service).toBeDefined();
     });
+
+    it('should use custom scoring configuration', () => {
+      const customConfig = {
+        ...mockConfig,
+        scoringConfig: {
+          greenThreshold: 80,
+          yellowThreshold: 60,
+          redThreshold: 0,
+          defaultScore: 50,
+          ranges: {
+            excellent: { min: 95, max: 100, description: 'Custom excellent' },
+            veryGood: { min: 85, max: 94, description: 'Custom very good' },
+            good: { min: 75, max: 84, description: 'Custom good' },
+            moderate: { min: 65, max: 74, description: 'Custom moderate' },
+            belowAverage: { min: 55, max: 64, description: 'Custom below average' },
+            poor: { min: 45, max: 54, description: 'Custom poor' },
+            veryPoor: { min: 0, max: 44, description: 'Custom very poor' }
+          }
+        }
+      };
+      
+      const service = new AzureAIClientService(customConfig);
+      expect(service).toBeDefined();
+      
+      // Test that clearPromptCache method exists
+      expect(typeof service.clearPromptCache).toBe('function');
+    });
+
+    it('should handle missing scoring configuration gracefully', () => {
+      const configWithoutScoring = {
+        projectEndpoint: 'https://test.cognitiveservices.azure.com',
+        deploymentName: 'test-deployment'
+      };
+      
+      const service = new AzureAIClientService(configWithoutScoring);
+      expect(service).toBeDefined();
+    });
+    
+    it('should provide clearPromptCache functionality', () => {
+      const service = new AzureAIClientService(mockConfig);
+      
+      // Should not throw when clearing cache
+      expect(() => service.clearPromptCache()).not.toThrow();
+    });
   });
 });

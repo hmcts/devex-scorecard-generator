@@ -79,13 +79,22 @@ const agentService = new AgentService({
   projectEndpoint: 'https://your-project.services.ai.azure.com/api/projects/your-project',
   deploymentName: 'gpt-4',
   apiKey: 'your-api-key',
-  agentId: 'optional-existing-agent-id' // Use existing agent or create new one
+  agentId: 'optional-existing-agent-id', // Use existing agent or create new one
+  scoringConfig: { // Optional: customize scoring thresholds
+    greenThreshold: 75,    // Scores >= 75 are green
+    yellowThreshold: 50,   // Scores 50-74 are yellow
+    // See SCORING_CONFIG.md for full configuration options
+  }
 });
 
 const result = await agentService.generateScorecard(octokit, 'owner', 'repo');
 console.log(`Score: ${result.score}/100`);
 console.log(`Analysis: ${result.analysis}`);
 ```
+
+### Custom Scoring Configuration
+
+You can customize the scoring thresholds and ranges used by the DevEx Scorecard system. See [SCORING_CONFIG.md](./SCORING_CONFIG.md) for detailed examples and configuration options.
 
 ## Scorecard Criteria
 

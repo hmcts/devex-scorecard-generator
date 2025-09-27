@@ -4,6 +4,7 @@ import { DEVEX_SCORECARD_TEMPLATE, generateScorecardRerunComment } from './score
 import { generateAIScorecardTemplate, generateAIScorecardRerunComment } from './ai-scorecard-template';
 import { GitHubAuthService } from './github-auth';
 import { AgentService } from './agent';
+import { ScoringConfigService } from './scoring-config';
 
 /**
  * Service responsible for managing DevEx Scorecard issues
@@ -13,14 +14,23 @@ import { AgentService } from './agent';
 export class IssueManagerService {
   private githubAuth: GitHubAuthService;
   private agentService?: AgentService;
+  private azureConfig?: AgentConfig;
 
   constructor(azureConfig?: AgentConfig) {
     this.githubAuth = GitHubAuthService.getInstance();
+    this.azureConfig = azureConfig;
     
     // Initialize AI agent service if Azure configuration is provided
     if (azureConfig) {
       this.agentService = new AgentService(azureConfig);
     }
+  }
+
+  /**
+   * Get scoring configuration service
+   */
+  private getScoringConfig(): ScoringConfigService {
+    return new ScoringConfigService(this.azureConfig?.scoringConfig);
   }
 
   /**
@@ -62,7 +72,7 @@ export class IssueManagerService {
           repository.owner.login,
           repository.name
         );
-        issueBody = generateAIScorecardTemplate(aiResult);
+        issueBody = generateAIScorecardTemplate(aiResult, this.getScoringConfig());
         console.log(`AI analysis completed for ${repository.full_name} - Score: ${aiResult.score}`);
       } catch (error) {
         console.error(`AI analysis failed for ${repository.full_name}, using static template:`, error);
@@ -103,7 +113,7 @@ export class IssueManagerService {
           repository.owner.login,
           repository.name
         );
-        issueBody = generateAIScorecardTemplate(aiResult);
+        issueBody = generateAIScorecardTemplate(aiResult, this.getScoringConfig());
         console.log(`AI analysis completed for ${repository.full_name} - Score: ${aiResult.score}`);
       } catch (error) {
         console.error(`AI analysis failed for ${repository.full_name}, using static template:`, error);
@@ -193,8 +203,8 @@ export class IssueManagerService {
           repository.owner.login,
           repository.name
         );
-        issueBody = generateAIScorecardTemplate(aiResult);
-        commentBody = generateAIScorecardRerunComment(aiResult);
+        issueBody = generateAIScorecardTemplate(aiResult, this.getScoringConfig());
+        commentBody = generateAIScorecardRerunComment(aiResult, this.getScoringConfig());
         console.log(`AI re-analysis completed for ${repository.full_name} - Score: ${aiResult.score}`);
       } catch (error) {
         console.error(`AI re-analysis failed for ${repository.full_name}, using static template:`, error);
