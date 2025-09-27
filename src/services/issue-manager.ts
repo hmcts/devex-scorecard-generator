@@ -204,7 +204,7 @@ export class IssueManagerService {
           repository.name
         );
         issueBody = generateAIScorecardTemplate(aiResult, this.getScoringConfig());
-        commentBody = generateAIScorecardRerunComment(aiResult, this.getScoringConfig());
+        commentBody = generateAIScorecardRerunComment(aiResult);
         console.log(`AI re-analysis completed for ${repository.full_name} - Score: ${aiResult.score}`);
       } catch (error) {
         console.error(`AI re-analysis failed for ${repository.full_name}, using static template:`, error);

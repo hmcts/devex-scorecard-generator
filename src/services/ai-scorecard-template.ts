@@ -39,7 +39,7 @@ ${result.recommendations.map((rec, index) => `${index + 1}. ${rec}`).join('\n')}
 _Last updated: ${new Date().toISOString()}_`;
 }
 
-export function generateAIScorecardRerunComment(result: ScorecardResult, scoringConfig?: ScoringConfigService): string {
+export function generateAIScorecardRerunComment(result: ScorecardResult): string {
   return `🔄 **AI Scorecard Analysis Completed**
 
 The DevEx Scorecard has been refreshed with a new AI analysis:
