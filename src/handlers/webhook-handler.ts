@@ -2,9 +2,12 @@ import { Request, Response } from 'express';
 import { WebhookPayload, Repository } from '../types';
 import { WebhookVerifierService } from '../services/webhook-verifier';
 import { IssueManagerService } from '../services/issue-manager';
+import { config } from '../config';
 
 /**
  * Handler for GitHub webhook events
+ * 
+ * Follows SRP by focusing solely on webhook request processing and routing
  */
 export class WebhookHandler {
   private webhookVerifier: WebhookVerifierService;
@@ -12,7 +15,7 @@ export class WebhookHandler {
 
   constructor() {
     this.webhookVerifier = WebhookVerifierService.getInstance();
-    this.issueManager = new IssueManagerService();
+    this.issueManager = new IssueManagerService(config.azure);
   }
 
   /**

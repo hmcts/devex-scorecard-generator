@@ -217,7 +217,7 @@ describe('IssueManagerService', () => {
         owner: 'owner',
         repo: 'test-repo',
         issue_number: 3,
-        body: expect.stringContaining('AI Scorecard Analysis Completed')
+        body: expect.stringContaining('Scorecard re-run completed')
       });
     });
   });

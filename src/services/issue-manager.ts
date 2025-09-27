@@ -1,24 +1,25 @@
 import { Octokit } from '@octokit/rest';
-import { Repository, Issue } from '../types';
+import { Repository, Issue, AgentConfig } from '../types';
 import { DEVEX_SCORECARD_TEMPLATE, generateScorecardRerunComment } from './scorecard-template';
 import { generateAIScorecardTemplate, generateAIScorecardRerunComment } from './ai-scorecard-template';
 import { GitHubAuthService } from './github-auth';
 import { AgentService } from './agent';
-import { config } from '../config';
 
 /**
  * Service responsible for managing DevEx Scorecard issues
+ * 
+ * Follows SRP by focusing solely on GitHub issue management for scorecards
  */
 export class IssueManagerService {
   private githubAuth: GitHubAuthService;
   private agentService?: AgentService;
 
-  constructor() {
+  constructor(azureConfig?: AgentConfig) {
     this.githubAuth = GitHubAuthService.getInstance();
     
-    // Initialize AI agent service if Azure configuration is available
-    if (config.azure) {
-      this.agentService = new AgentService(config.azure);
+    // Initialize AI agent service if Azure configuration is provided
+    if (azureConfig) {
+      this.agentService = new AgentService(azureConfig);
     }
   }
 

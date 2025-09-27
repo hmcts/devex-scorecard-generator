@@ -46,3 +46,11 @@ export interface ScorecardResult {
   analysis: string;
   recommendations: string[];
 }
+
+export interface AgentConfig {
+  projectEndpoint: string;
+  deploymentName: string;
+  apiKey?: string;
+  apiVersion?: string;
+  agentId?: string;
+}
