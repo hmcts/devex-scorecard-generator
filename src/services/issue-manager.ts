@@ -72,7 +72,7 @@ export class IssueManagerService {
           repository.owner.login,
           repository.name
         );
-        issueBody = generateAIScorecardTemplate(aiResult, this.getScoringConfig());
+        issueBody = generateAIScorecardTemplate(aiResult, this.getScoringConfig(), repository);
         console.log(`AI analysis completed for ${repository.full_name} - Score: ${aiResult.score}`);
       } catch (error) {
         console.error(`AI analysis failed for ${repository.full_name}, using static template:`, error);
@@ -113,7 +113,7 @@ export class IssueManagerService {
           repository.owner.login,
           repository.name
         );
-        issueBody = generateAIScorecardTemplate(aiResult, this.getScoringConfig());
+        issueBody = generateAIScorecardTemplate(aiResult, this.getScoringConfig(), repository);
         console.log(`AI analysis completed for ${repository.full_name} - Score: ${aiResult.score}`);
       } catch (error) {
         console.error(`AI analysis failed for ${repository.full_name}, using static template:`, error);
@@ -203,7 +203,7 @@ export class IssueManagerService {
           repository.owner.login,
           repository.name
         );
-        issueBody = generateAIScorecardTemplate(aiResult, this.getScoringConfig());
+        issueBody = generateAIScorecardTemplate(aiResult, this.getScoringConfig(), repository);
         commentBody = generateAIScorecardRerunComment(aiResult);
         console.log(`AI re-analysis completed for ${repository.full_name} - Score: ${aiResult.score}`);
       } catch (error) {

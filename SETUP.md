@@ -37,7 +37,6 @@ To deploy this bot, you need to create a GitHub App. Follow these steps:
 Set the following environment variables in your deployment:
 
 ```bash
-GITHUB_TOKEN=your_github_app_installation_token
 WEBHOOK_SECRET=your_webhook_secret
 PORT=3000
 ```

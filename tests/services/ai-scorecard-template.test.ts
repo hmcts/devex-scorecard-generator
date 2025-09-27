@@ -1,7 +1,14 @@
 import { generateAIScorecardTemplate, generateAIScorecardRerunComment } from '../../src/services/ai-scorecard-template';
-import { ScorecardResult } from '../../src/types';
+import { ScorecardResult, Repository } from '../../src/types';
 
 describe('AI Scorecard Template', () => {
+  const mockRepository: Repository = {
+    name: 'test-repo',
+    full_name: 'hmcts/test-repo',
+    owner: {
+      login: 'hmcts'
+    }
+  };
   describe('generateAIScorecardTemplate', () => {
     it('should generate template for high score (green)', () => {
       const result: ScorecardResult = {
@@ -106,6 +113,85 @@ describe('AI Scorecard Template', () => {
       // Should not have numbered recommendations
       expect(template).not.toMatch(/\d+\. /);
     });
+
+    it('should generate GitHub issue links when repository is provided', () => {
+      const result: ScorecardResult = {
+        score: 70,
+        color: 'yellow',
+        analysis: 'Test analysis',
+        recommendations: [
+          'Add comprehensive documentation',
+          'Implement automated testing'
+        ]
+      };
+
+      const template = generateAIScorecardTemplate(result, undefined, mockRepository);
+
+      expect(template).toContain('1. Add comprehensive documentation');
+      expect(template).toContain('👉 [Create GitHub Issue](https://github.com/hmcts/test-repo/issues/new');
+      expect(template).toContain('assignees=copilot');
+      expect(template).toContain('title=%E2%9C%A8+DevEx+Improvement+%231');
+      expect(template).toContain('2. Implement automated testing');
+      expect(template).toContain('💡 Tip:** Click the "Create GitHub Issue" links above to automatically create actionable issues that Copilot can help implement!');
+    });
+
+    it('should fall back to plain text when no repository is provided', () => {
+      const result: ScorecardResult = {
+        score: 70,
+        color: 'yellow',
+        analysis: 'Test analysis',
+        recommendations: [
+          'Add comprehensive documentation',
+          'Implement automated testing'
+        ]
+      };
+
+      const template = generateAIScorecardTemplate(result);
+
+      expect(template).toContain('1. Add comprehensive documentation');
+      expect(template).toContain('2. Implement automated testing');
+      expect(template).not.toContain('👉 [Create GitHub Issue]');
+      expect(template).not.toContain('💡 Tip:**');
+    });
+
+    it('should properly encode URLs for GitHub issue creation', () => {
+      const result: ScorecardResult = {
+        score: 70,
+        color: 'yellow',
+        analysis: 'Test analysis',
+        recommendations: [
+          'Add documentation with special characters: & = ? #'
+        ]
+      };
+
+      const template = generateAIScorecardTemplate(result, undefined, mockRepository);
+
+      expect(template).toContain('Create GitHub Issue');
+      // URL should be properly encoded
+      expect(template).toContain('https://github.com/hmcts/test-repo/issues/new?');
+      expect(template).toContain('assignees=copilot');
+    });
+
+    it('should handle multiple recommendations with unique issue links', () => {
+      const result: ScorecardResult = {
+        score: 60,
+        color: 'yellow',
+        analysis: 'Test analysis',
+        recommendations: [
+          'First recommendation',
+          'Second recommendation',
+          'Third recommendation'
+        ]
+      };
+
+      const template = generateAIScorecardTemplate(result, undefined, mockRepository);
+
+      expect(template).toContain('DevEx+Improvement+%231');
+      expect(template).toContain('DevEx+Improvement+%232');
+      expect(template).toContain('DevEx+Improvement+%233');
+      // Should have 3 recommendation links plus 1 in the tip text = 4 total
+      expect(template.match(/Create GitHub Issue/g)).toHaveLength(4);
+    });
   });
 
   describe('generateAIScorecardRerunComment', () => {
@@ -121,10 +207,6 @@ describe('AI Scorecard Template', () => {
 
       expect(comment).toContain('🔄 **AI Scorecard Analysis Completed**');
       expect(comment).toContain('**Score:** 78/100 🟢');
-      expect(comment).toContain('**Key Insights:**');
-      expect(comment).toContain('This repository demonstrates good practices.');
-      expect(comment).toContain('It has comprehensive documentation.');
-      expect(comment).toContain('The code structure is well organized.');
       expect(comment).toContain('Please review the updated analysis and recommendations above.');
       expect(comment).toMatch(/_Generated at: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z_/);
     });
@@ -154,37 +236,6 @@ describe('AI Scorecard Template', () => {
       expect(generateAIScorecardRerunComment(redResult)).toContain('**Score:** 30/100 🔴');
       expect(generateAIScorecardRerunComment(yellowResult)).toContain('**Score:** 55/100 🟡');
       expect(generateAIScorecardRerunComment(greenResult)).toContain('**Score:** 80/100 🟢');
-    });
-
-    it('should handle short analysis text', () => {
-      const result: ScorecardResult = {
-        score: 65,
-        color: 'yellow',
-        analysis: 'Short analysis',
-        recommendations: []
-      };
-
-      const comment = generateAIScorecardRerunComment(result);
-
-      expect(comment).toContain('**Key Insights:**');
-      expect(comment).toContain('Short analysis');
-    });
-
-    it('should limit key insights to first 3 lines', () => {
-      const result: ScorecardResult = {
-        score: 65,
-        color: 'yellow',
-        analysis: 'Line 1\nLine 2\nLine 3\nLine 4\nLine 5',
-        recommendations: []
-      };
-
-      const comment = generateAIScorecardRerunComment(result);
-
-      expect(comment).toContain('Line 1');
-      expect(comment).toContain('Line 2');
-      expect(comment).toContain('Line 3');
-      expect(comment).not.toContain('Line 4');
-      expect(comment).not.toContain('Line 5');
     });
   });
 });

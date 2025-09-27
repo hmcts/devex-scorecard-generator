@@ -89,10 +89,7 @@ export class AzureAIClientService {
 
     try {
       // Get the project root directory
-      // Handle both compiled (dist/) and source (src/) directory structures
-      const projectRoot = __dirname.includes('/dist/') 
-        ? join(__dirname, '..', '..', '..')  // From dist/services/
-        : join(__dirname, '..', '..');       // From src/services/
+      const projectRoot = join(__dirname, '..', '..');       // From src/services/
       const promptPath = join(projectRoot, 'devex-agent-prompt.md');
       
       const promptContent = await readFile(promptPath, 'utf-8');
