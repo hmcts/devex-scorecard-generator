@@ -23,6 +23,36 @@ jest.mock('fs', () => ({
   readFileSync: jest.fn().mockReturnValue('mocked-private-key'),
 }));
 
+// Mock Azure AI dependencies to prevent real network calls
+jest.mock('@azure/identity', () => ({
+  DefaultAzureCredential: jest.fn().mockImplementation(() => ({
+    getToken: jest.fn().mockResolvedValue({ token: 'mock-token' }),
+  })),
+}));
+
+const mockAgentsClient = {
+  create: jest.fn().mockResolvedValue({ id: 'agent-123' }),
+  createThread: jest.fn().mockResolvedValue({ id: 'thread-123' }),
+  createRun: jest.fn().mockResolvedValue({ id: 'run-123', status: 'completed' }),
+  getRun: jest.fn().mockResolvedValue({ status: 'completed' }),
+  listMessages: jest.fn().mockResolvedValue([
+    {
+      role: 'assistant',
+      content: [{ type: 'text', text: { value: '{"score": 75, "color": "yellow", "analysis": "Mock analysis", "recommendations": ["Mock recommendation"]}' } }]
+    }
+  ]),
+};
+
+jest.mock('@azure/ai-projects', () => ({
+  AIProjectClient: jest.fn().mockImplementation(() => ({
+    agents: mockAgentsClient,
+  })),
+}));
+
+jest.mock('@azure/ai-agents', () => ({
+  AgentsClient: jest.fn().mockImplementation(() => mockAgentsClient),
+}));
+
 import request from 'supertest';
 import { createApp, startServer } from '../src/server';
 
