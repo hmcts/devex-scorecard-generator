@@ -88,11 +88,13 @@ ${result.analysis}
 
 ${formatRecommendationsWithLinks(result.recommendations, repository)}
 
+${repository ? '**💡 Tip:** Click the "Create GitHub Issue" links above to automatically create actionable issues that Copilot can help implement!' : ''}
+
 ## 🔄 Actions
 
 - [ ] **Re-run AI analysis** - Check this box to trigger a fresh AI-powered analysis
 
-> This scorecard was generated automatically using AI analysis. Check the box above to request an updated analysis.${repository ? '\n\n**💡 Tip:** Click the "Create GitHub Issue" links above to automatically create actionable issues that Copilot can help implement!' : ''}
+> This scorecard was generated automatically using AI analysis. Check the box above to request an updated analysis.
 
 _Last updated: ${new Date().toISOString()}_`;
 }
